@@ -2519,7 +2519,7 @@ int check_cert_might_be_valid(BIO *bio, X509 *x, const char *checkhost,
     }
 
     if (!X509_VERIFY_PARAM_set1_host(vpm, checkhost, 0)) {
-        maybe_printf(bio, "Invalid host name %s\n", checkhost);
+        maybe_printf(bio, "Invalid host name: %s\n", checkhost);
         goto err;
     }
 
