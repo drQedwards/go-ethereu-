@@ -136,8 +136,8 @@ to contain the value I<name> of type B<TLSEXT_NAMETYPE_host_name>.
 If I<name> is NULL it clears the SNI extension.
 
 Using this function may be crucial also for correct routing of connection requests.
-TLS clients are recommended to use this function as well as L<SSL_set1_host(3)>
-or L<SSL_add1_host(3)> for validation of server hostname(s) and/or IP address.
+TLS clients are recommended to use this function as well as L<SSL_set1_dnsname(3)>
+or L<SSL_add1_dnsname(3)> for validation of server hostname(s).
 
 The SSL_set_tlsext_host_name() function should only be called on SSL objects
 that will act as clients; otherwise the configured I<name> will be ignored.
@@ -159,6 +159,7 @@ SSL_set_tlsext_host_name() returns 1 on success, 0 in case of error.
 
 L<ssl(7)>, L<SSL_CTX_set_alpn_select_cb(3)>,
 L<SSL_get0_alpn_selected(3)>, L<SSL_CTX_set_client_hello_cb(3)>,
+L<SSL_set1_dnsname(3)>, L<SSL_add1_dnsname(3)>,
 L<X509_VERIFY_PARAM_set1_host(3)>, L<X509_VERIFY_PARAM_add1_host(3)>
 
 =head1 HISTORY
