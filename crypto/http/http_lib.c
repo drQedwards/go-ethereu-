@@ -114,6 +114,8 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
         if (host_end == NULL)
             goto parse_err;
         p = ++host_end;
+        if (host_end > authority_end)
+            goto parse_err;
     } else {
         /* look for start of optional port, path, query, or fragment */
         host_end = strpbrk(host, ":/?#");
