@@ -558,6 +558,7 @@ my @disablables_features = (
     "sm2-precomp",
     "sock",
     "sse2",
+    "ssl-test-functions",
     "ssl-trace",
     "static-vcruntime",
     "stdio",
@@ -570,7 +571,6 @@ my @disablables_features = (
     "ts",
     "ubsan",
     "ui-console",
-    "unit-test",
     "uplink",
     "weak-ssl-ciphers",
     "zlib-dynamic",
@@ -607,6 +607,7 @@ my %deprecated_disablables = (
     "ssl" => undef,
     "ssl3" => undef,
     "ssl3-method" => undef,
+    "unit-test" => "ssl-test-functions",
     );
 
 # All of the following are disabled by default:
@@ -638,13 +639,13 @@ our %disabled = ( # "what"         => "comment"
                   "msan"                => "default",
                   "rc5"                 => "default",
                   "sctp"                => "default",
+                  "ssl-test-functions"  => "default",
                   "sslkeylog"           => "default",
                   "static-vcruntime"    => "default",
                   "tfo"                 => "default",
                   "tls-deprecated-ec"   => "default",
                   "trace"               => "default",
                   "ubsan"               => "default",
-                  "unit-test"           => "default",
                   "weak-ssl-ciphers"    => "default",
                   "zlib"                => "default",
                   "zlib-dynamic"        => "default",
@@ -717,7 +718,7 @@ my @disable_cascades = (
     "tests"             => [ "external-tests" ],
     "comp"              => [ "zlib", "brotli", "zstd" ],
     "sm3"               => [ "sm2" ],
-    sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
+    sub { !$disabled{"ssl-test-functions"} } => [ "heartbeats" ],
 
     sub { !$disabled{"msan"} } => [ "asm" ],
 
