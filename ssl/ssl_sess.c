@@ -317,6 +317,34 @@ unsigned int SSL_SESSION_get_compress_id(const SSL_SESSION *s)
  */
 
 #define MAX_SESS_ID_ATTEMPTS 10
+
+static int has_matching_external_session_id(const SSL *ssl,
+                                            const unsigned char *id,
+                                            unsigned int id_len)
+{
+    const SSL_CONNECTION *sc = SSL_CONNECTION_FROM_CONST_SSL(ssl);
+    GEN_SESSION_COLLISION_CB cb = NULL;
+    int ret;
+
+    if (sc == NULL)
+        return 0;
+
+    if (sc->session_id_collision_cb != NULL)
+        cb = sc->session_id_collision_cb;
+    else if (sc->session_ctx != NULL)
+        cb = sc->session_ctx->session_id_collision_cb;
+
+    if (cb == NULL)
+        return 0;
+
+    ret = cb(SSL_CONNECTION_GET_USER_SSL(sc), id, id_len);
+    if (ret > 0)
+        return 1;
+
+    /* Negative return indicates indeterminate; treat as no external collision. */
+    return 0;
+}
+
 static int def_generate_session_id(SSL *ssl, unsigned char *id,
     unsigned int *id_len)
 {
@@ -329,18 +357,12 @@ static int def_generate_session_id(SSL *ssl, unsigned char *id,
             id[0]++;
         }
 #endif
-    } while (SSL_has_matching_session_id(ssl, id, *id_len) && (++retry < MAX_SESS_ID_ATTEMPTS));
+    } while ((SSL_has_matching_session_id(ssl, id, *id_len)
+              || has_matching_external_session_id(ssl, id, *id_len))
+             && (++retry < MAX_SESS_ID_ATTEMPTS));
     if (retry < MAX_SESS_ID_ATTEMPTS)
         return 1;
     /* else - woops a session_id match */
-    /*
-     * XXX We should also check the external cache -- but the probability of
-     * a collision is negligible, and we could not prevent the concurrent
-     * creation of sessions with identical IDs since we currently don't have
-     * means to atomically check whether a session ID already exists and make
-     * a reservation for it if it does not (this problem applies to the
-     * internal cache as well).
-     */
     return 0;
 }
 
@@ -422,7 +444,9 @@ int ssl_generate_session_id(SSL_CONNECTION *s, SSL_SESSION *ss)
     ss->session_id_length = tmp;
     /* Finally, check for a conflict */
     if (SSL_has_matching_session_id(ssl, ss->session_id,
-            (unsigned int)ss->session_id_length)) {
+            (unsigned int)ss->session_id_length)
+            || has_matching_external_session_id(ssl, ss->session_id,
+                                                (unsigned int)ss->session_id_length)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_SSL_SESSION_ID_CONFLICT);
         return 0;
     }
