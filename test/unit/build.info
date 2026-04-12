@@ -1,0 +1,29 @@
+# Make sure all tests have WRAP otherwise -lcmocka is not added.
+
+PROGRAMS{noinst}=crypto/x509/test_x509_vfy
+SOURCE[crypto/x509/test_x509_vfy]=crypto/x509/test_x509_vfy.c
+INCLUDE[crypto/x509/test_x509_vfy]=../../include ../..
+DEPEND[crypto/x509/test_x509_vfy]=../../libcrypto.a
+WRAP[crypto/x509/test_x509_vfy]=ERR_set_error \
+                                X509_NAME_cmp \
+                                ASN1_INTEGER_cmp \
+                                ASN1_OCTET_STRING_cmp \
+                                X509_CRL_get_ext_by_NID \
+                                X509_CRL_get_ext \
+                                X509_EXTENSION_get_data \
+                                X509_CRL_verify \
+                                X509_CRL_sign \
+                                X509_CRL_new_ex \
+                                X509_CRL_set_version \
+                                X509_CRL_set_issuer_name \
+                                X509_CRL_set1_lastUpdate \
+                                X509_CRL_set1_nextUpdate \
+                                X509_CRL_add1_ext_i2d \
+                                X509_CRL_get_ext_count \
+                                X509_CRL_add_ext \
+                                X509_CRL_get_REVOKED \
+                                X509_CRL_get0_by_serial \
+                                X509_REVOKED_dup \
+                                X509_CRL_add0_revoked \
+                                X509_CRL_free \
+                                X509_REVOKED_free
