@@ -736,7 +736,7 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
                 goto err;
         if (!EVP_MAC_update(ctx, &counter, 1))
             goto err;
-        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, hmac_len - ii))
+        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, (size_t)md_size))
             goto err;
         counter++;
     }
