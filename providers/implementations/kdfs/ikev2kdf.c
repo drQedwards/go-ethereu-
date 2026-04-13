@@ -303,7 +303,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
             ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_SECRET);
             return 0;
         }
-        if (keylen != md_size) {
+        if (keylen != (size_t)md_size) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
@@ -337,7 +337,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
-            if ((keylen < md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
+            if ((keylen < (size_t)md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
@@ -352,7 +352,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                 ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_DKM);
                 return 0;
             }
-            if ((keylen < md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
+            if ((keylen < (size_t)md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
@@ -386,7 +386,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
-        if (keylen != md_size) {
+        if (keylen != (size_t)md_size) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
