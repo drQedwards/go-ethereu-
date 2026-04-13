@@ -239,28 +239,28 @@ static int ikev2_check_secret_and_pad(KDF_IKEV2KDF *ctx)
 
     if (ctx->secret_len < IKEV2KDF_MAX_GROUP19_MODLEN)
         pad_len = IKEV2KDF_MAX_GROUP19_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP19_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP19_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP20_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP20_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP20_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP20_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP21_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP21_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP21_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP21_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP2_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP2_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP2_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP2_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP14_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP14_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP14_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP14_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP15_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP15_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len > IKEV2KDF_MAX_GROUP15_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP15_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP16_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP16_MODLEN - ctx->secret_len;
-    if ((ctx->secret_len >= IKEV2KDF_MAX_GROUP16_MODLEN)
+    else if ((ctx->secret_len > IKEV2KDF_MAX_GROUP16_MODLEN)
         && (ctx->secret_len < IKEV2KDF_MAX_GROUP17_MODLEN))
         pad_len = IKEV2KDF_MAX_GROUP17_MODLEN - ctx->secret_len;
-    if (ctx->secret_len > IKEV2KDF_MAX_GROUP17_MODLEN)
+    else if (ctx->secret_len > IKEV2KDF_MAX_GROUP17_MODLEN)
         pad_len = IKEV2KDF_MAX_GROUP18_MODLEN - ctx->secret_len;
 
     new_secret = OPENSSL_zalloc(ctx->secret_len + pad_len);
@@ -280,7 +280,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
 {
     KDF_IKEV2KDF *ctx = (KDF_IKEV2KDF *)vctx;
     const EVP_MD *md;
-    size_t md_size;
+    int md_size;
 
     if (!ossl_prov_is_running() || !kdf_ikev2kdf_set_ctx_params(ctx, params))
         return 0;
@@ -491,7 +491,7 @@ static int kdf_ikev2kdf_get_ctx_params(void *vctx, OSSL_PARAM params[])
         return 0;
 
     if (p.size != NULL) {
-        size_t sz = 0;
+        int sz = 0;
         const EVP_MD *md = NULL;
 
         md = ossl_prov_digest_md(&ctx->digest);
@@ -502,7 +502,7 @@ static int kdf_ikev2kdf_get_ctx_params(void *vctx, OSSL_PARAM params[])
         sz = EVP_MD_size(md);
         if (sz <= 0)
             return 0;
-        if (!OSSL_PARAM_set_size_t(p.size, sz))
+        if (!OSSL_PARAM_set_size_t(p.size, (size_t)sz))
             return 0;
     }
     return 1;
@@ -704,7 +704,7 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
     if (md_size <= 0)
         return 0;
     /* len_out may not fit the last hmac, round up */
-    hmac_len = ((len_out + md_size - 1) / md_size) * md_size;
+    hmac_len = ((len_out + (size_t)md_size - 1) / (size_t)md_size) * (size_t)md_size;
     hmac = OPENSSL_malloc(hmac_len);
     if (hmac == NULL)
         return 0;
@@ -718,11 +718,11 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
      * len_out <= IKEV2_MAX_DKM_LEN
      * loop count will fit in 1 byte value
      */
-    for (ii = 0; ii < len_out; ii += md_size) {
+    for (ii = 0; ii < len_out; ii += (size_t)md_size) {
         if (!EVP_MAC_init(ctx, seedkey, seedkey_len, params))
             goto err;
         if (ii != 0)
-            if (!EVP_MAC_update(ctx, &hmac[ii - md_size], md_size))
+            if (!EVP_MAC_update(ctx, &hmac[ii - (size_t)md_size], (size_t)md_size))
                 goto err;
         if (shared_secret != NULL)
             if (!EVP_MAC_update(ctx, shared_secret, shared_secret_len))
@@ -736,7 +736,7 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
                 goto err;
         if (!EVP_MAC_update(ctx, &counter, 1))
             goto err;
-        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, len_out))
+        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, hmac_len - ii))
             goto err;
         counter++;
     }
