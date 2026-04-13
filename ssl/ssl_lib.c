@@ -510,10 +510,6 @@ static int ssl_check_allowed_versions(int min_version, int max_version)
             max_version = TLS1_VERSION;
 #endif
 #ifdef OPENSSL_NO_TLS1
-        if (max_version == TLS1_VERSION)
-            max_version = SSL3_VERSION;
-#endif
-#ifdef OPENSSL_NO_TLS1
         if (min_version == TLS1_VERSION)
             min_version = TLS1_1_VERSION;
 #endif
@@ -3468,7 +3464,7 @@ STACK_OF(SSL_CIPHER) *SSL_get1_supported_ciphers(SSL *s)
         return NULL;
     for (i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
         const SSL_CIPHER *c = sk_SSL_CIPHER_value(ciphers, i);
-        if (!ssl_cipher_disabled(sc, c, SSL_SECOP_CIPHER_SUPPORTED, 0)) {
+        if (!ssl_cipher_disabled(sc, c, SSL_SECOP_CIPHER_SUPPORTED)) {
             if (!sk)
                 sk = sk_SSL_CIPHER_new_null();
             if (!sk)
@@ -4339,15 +4335,6 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
         goto err;
     }
 
-    /*
-     * If these aren't available from the provider we'll get NULL returns.
-     * That's fine but will cause errors later if SSLv3 is negotiated
-     */
-    ERR_set_mark();
-    ret->md5 = EVP_MD_fetch(libctx, "MD5", propq);
-    ret->sha1 = EVP_MD_fetch(libctx, "SHA1", propq);
-    ERR_pop_to_mark();
-
     if ((ret->ca_names = sk_X509_NAME_new_null()) == NULL) {
         ERR_raise(ERR_LIB_SSL, ERR_R_CRYPTO_LIB);
         goto err;
@@ -4616,9 +4603,6 @@ void SSL_CTX_free(SSL_CTX *a)
     OPENSSL_free(a->ext.tuples);
     OPENSSL_free(a->ext.alpn);
     OPENSSL_secure_clear_free(a->ext.secure, sizeof(*a->ext.secure));
-
-    ssl_evp_md_free(a->md5);
-    ssl_evp_md_free(a->sha1);
 
     for (j = 0; j < SSL_ENC_NUM_IDX; j++)
         ssl_evp_cipher_free(a->ssl_cipher_methods[j]);
