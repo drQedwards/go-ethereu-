@@ -280,7 +280,8 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
 {
     KDF_IKEV2KDF *ctx = (KDF_IKEV2KDF *)vctx;
     const EVP_MD *md;
-    int md_size;
+    size_t md_size;
+    int value = 0;
 
     if (!ossl_prov_is_running() || !kdf_ikev2kdf_set_ctx_params(ctx, params))
         return 0;
@@ -290,9 +291,10 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_MESSAGE_DIGEST);
         return 0;
     }
-    md_size = EVP_MD_size(md);
-    if (md_size <= 0)
+    value = EVP_MD_size(md);
+    if (value <= 0)
         return 0;
+    md_size = (size_t)value;
 
     if (!ikev2_common_check_ctx_params(ctx))
         return 0;
@@ -303,7 +305,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
             ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_SECRET);
             return 0;
         }
-        if (keylen != (size_t)md_size) {
+        if (keylen != md_size) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
@@ -333,11 +335,11 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                 ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_KEY);
                 return 0;
             }
-            if (ctx->seedkey_len != (size_t)md_size) {
+            if (ctx->seedkey_len != md_size) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
-            if ((keylen < (size_t)md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
+            if ((keylen < md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
@@ -352,7 +354,7 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
                 ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_DKM);
                 return 0;
             }
-            if ((keylen < (size_t)md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
+            if ((keylen < md_size) || (keylen > IKEV2KDF_MAX_DKM_LENGTH)) {
                 ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
                 return 0;
             }
@@ -382,11 +384,11 @@ static int kdf_ikev2kdf_derive(void *vctx, unsigned char *key, size_t keylen,
             ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_DKM);
             return 0;
         }
-        if (ctx->sk_d_len != (size_t)md_size) {
+        if (ctx->sk_d_len != md_size) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
-        if (keylen != (size_t)md_size) {
+        if (keylen != md_size) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
             return 0;
         }
@@ -693,18 +695,20 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
     size_t outl = 0, hmac_len = 0, ii;
     unsigned char *hmac = NULL;
     int ret = 0;
-    int md_size = 0;
+    size_t md_size = 0;
+    int value = 0;
     unsigned char counter = 1;
     OSSL_PARAM params[] = {
         OSSL_PARAM_construct_utf8_string("digest", (char *)EVP_MD_name(evp_md), 0),
         OSSL_PARAM_construct_end()
     };
 
-    md_size = EVP_MD_size(evp_md);
-    if (md_size <= 0)
+    value = EVP_MD_size(evp_md);
+    if (value <= 0)
         return 0;
+    md_size = (size_t)value;
     /* len_out may not fit the last hmac, round up */
-    hmac_len = ((len_out + (size_t)md_size - 1) / (size_t)md_size) * (size_t)md_size;
+    hmac_len = ((len_out + md_size - 1) / md_size) * md_size;
     hmac = OPENSSL_malloc(hmac_len);
     if (hmac == NULL)
         return 0;
@@ -718,11 +722,11 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
      * len_out <= IKEV2_MAX_DKM_LEN
      * loop count will fit in 1 byte value
      */
-    for (ii = 0; ii < len_out; ii += (size_t)md_size) {
+    for (ii = 0; ii < len_out; ii += md_size) {
         if (!EVP_MAC_init(ctx, seedkey, seedkey_len, params))
             goto err;
         if (ii != 0)
-            if (!EVP_MAC_update(ctx, &hmac[ii - (size_t)md_size], (size_t)md_size))
+            if (!EVP_MAC_update(ctx, &hmac[ii - md_size], md_size))
                 goto err;
         if (shared_secret != NULL)
             if (!EVP_MAC_update(ctx, shared_secret, shared_secret_len))
@@ -736,7 +740,7 @@ static int IKEV2_DKM(OSSL_LIB_CTX *libctx, unsigned char *dkm, const size_t len_
                 goto err;
         if (!EVP_MAC_update(ctx, &counter, 1))
             goto err;
-        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, (size_t)md_size))
+        if (!EVP_MAC_final(ctx, &hmac[ii], &outl, md_size))
             goto err;
         counter++;
     }
