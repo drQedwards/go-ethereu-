@@ -594,7 +594,7 @@ err:
  * IKEV2_REKEY - KDF in compliance with SP800-135 for IKEv2,
  *               re-generate the seedkey.
  *
- * algorithm:  HMAC(sk_d, Ni || Nr || seedkey || (if dh==1 then shared_secret))
+ * algorithm:  HMAC(sk_d, new secret || Ni || Nr )
  *
  * Inputs:
  *   libctx - provider LIB context
