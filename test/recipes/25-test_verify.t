@@ -473,6 +473,10 @@ ok(!verify("bad-othername-cert", "", ["root-cert"], ["nccaothername-cert"], ),
 ok(verify("nc-uri-cert", "", ["root-cert"], ["ncca4-cert"], ),
    "Name constraints URI with userinfo");
 
+ok(!verify("bad-cert-smtputf8-name-constraints", "root-cert", ["bad-cert-smtputf8-name-constraints"], [],
+	  "-partial_chain", "-attime", "1623060000"),
+   "Name constraints bad othername name constraint");
+
 #Check that we get the expected failure return code
 with({ exit_checker => sub { return shift == 2; } },
      sub {
