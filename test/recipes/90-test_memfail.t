@@ -30,9 +30,10 @@ run(test(["handshake-memfail", "count", srctop_dir("test", "certs")], stderr => 
 
 run(test(["x509-memfail", "count", srctop_file("test", "certs", "servercert.pem")], stderr => "$resultdir/x509countinfo.txt"));
 
+run(test(["property-memfail", "count"], stderr => "$resultdir/propertycountinfo.txt"));
+
 sub get_count_info {
     my ($infile) = @_;
-    my @vals;
 
     # Read in our input file
     open my $handle, '<', "$infile";
@@ -41,29 +42,25 @@ sub get_count_info {
 
     # parse the input file
     foreach(@lines) {
-        if ($_ =~/skip:/) {
-            @vals = split ' ', $_;
-            last;
+        if ($_ =~ /skip:\s*(\d+)\s+count\s+(\d+)/) {
+            return ($1, $2);
         }
     }
-    #
-    #The number of allocations we skip is in argument 2
-    #The number of mallocs we should test is in argument 4
-    #
-    my $skipcount = $vals[2];
-    my $malloccount = $vals[4];
-    return ($skipcount, $malloccount);
+
+    die "Unable to parse allocation count info from $infile\n";
 }
 
 my ($hsskipcount, $hsmalloccount) = get_count_info("$resultdir/hscountinfo.txt");
 
 my ($x509skipcount, $x509malloccount) = get_count_info("$resultdir/x509countinfo.txt");
 
+my (undef, $propertymalloccount) = get_count_info("$resultdir/propertycountinfo.txt");
+
 #
 # Now we can plan our tests.  We plan to run malloccount iterations of this
 # test
 #
-plan tests => $hsmalloccount + $x509malloccount;
+plan tests => $hsmalloccount + $x509malloccount + $propertymalloccount;
 
 sub run_memfail_test {
     my $skipcount = $_[0];
@@ -88,3 +85,6 @@ run_memfail_test($hsskipcount, $hsmalloccount, ["handshake-memfail", "run", srct
 
 run_memfail_test($x509skipcount, $x509malloccount, ["x509-memfail", "run", srctop_file("test", "certs", "servercert.pem")]);
 
+for my $idx (1..$propertymalloccount) {
+    ok(run(test(["property-memfail", "run", $idx])));
+}
