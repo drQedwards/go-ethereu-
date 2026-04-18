@@ -61,18 +61,27 @@ static int check_limbs_value(const OSSL_FN *f, size_t start, size_t end,
 }
 
 /* A set of numbers on OSSL_FN_ULONG array form */
+/* $num0 = 0x8000000000000001 */
 static const OSSL_FN_ULONG num0[] = { OSSL_FN_ULONG64_C(0x80000000, 0x00000001) };
+/* $num1 = 0x0000000180000000 */
 static const OSSL_FN_ULONG num1[] = { OSSL_FN_ULONG64_C(0x00000001, 0x80000000) };
+/* $num2 = 0x0123456789abcdef */
 static const OSSL_FN_ULONG num2[] = { OSSL_FN_ULONG64_C(0x01234567, 0x89abcdef) };
+/* $num3 = 0x76543210fedcba98 */
 static const OSSL_FN_ULONG num3[] = { OSSL_FN_ULONG64_C(0xfedcba98, 0x76543210) };
 
 /* Numbers for edge cases */
+/* $num4 = 0x0000000000000000 */
 static const OSSL_FN_ULONG num4[] = { OSSL_FN_ULONG64_C(0x00000000, 0x00000000) };
+/* $num5 = 0xffffffffffffffff */
 static const OSSL_FN_ULONG num5[] = { OSSL_FN_ULONG64_C(0xffffffff, 0xffffffff) };
+/* $num6 = 0x10000000000000000000000000000000 */
 static const OSSL_FN_ULONG num6[] = {
     OSSL_FN_ULONG64_C(0x00000000, 0x00000000),
     OSSL_FN_ULONG64_C(0x10000000, 0x00000000),
 };
+/* [32-bit] $num7 = 0xffffffff00000000000000000000000000000000 */
+/* [64-bit] $num7 = 0xffffffffffffffff00000000000000000000000000000000 */
 static const OSSL_FN_ULONG num7[] = {
     OSSL_FN_ULONG64_C(0x00000000, 0x00000000),
     OSSL_FN_ULONG64_C(0x00000000, 0x00000000),
@@ -94,38 +103,47 @@ static const OSSL_FN_ULONG num7[] = {
  */
 #define LIMBSOF(num) ((sizeof(num) + OSSL_FN_BYTES - 1) / OSSL_FN_BYTES)
 struct test_case_st {
-    /* Two operands and expected full result */
+    /* Two operands and expected full result (possibly two numbers) */
     const OSSL_FN_ULONG *op1;
     size_t op1_size;
     const OSSL_FN_ULONG *op2;
     size_t op2_size;
-    const OSSL_FN_ULONG *ex;
-    size_t ex_size;
+    const OSSL_FN_ULONG *ex1;
+    size_t ex1_size;
+    const OSSL_FN_ULONG *ex2;
+    size_t ex2_size;
 
     /* Setup sizes for creating OSSL_FNs */
     size_t op1_live_size;
     size_t op2_live_size;
-    size_t res_live_size;
+    size_t res1_live_size;
+    size_t res2_live_size;
 
-    /* Number of limbs to compare the result's OSSL_FN_ULONG array against ex */
-    size_t check_size;
+    /* Number of limbs to compare the result's OSSL_FN_ULONG array against ex1 and ex2 */
+    size_t check1_size;
+    size_t check2_size;
 
-    /* When the result is larger than check_size, the expected extended value */
-    OSSL_FN_ULONG extended_limb_value;
+    /* When the result is larger than check1_size or check2_size, the expected extended value */
+    OSSL_FN_ULONG extended_limb_value1;
+    OSSL_FN_ULONG extended_limb_value2;
 #define EXTENDED_LIMB_ZERO ((OSSL_FN_ULONG)0)
 #define EXTENDED_LIMB_MINUS_ONE ((OSSL_FN_ULONG)-1)
 };
 
+/* $num0 + $num0 == 0x10000000000000002 */
 static const OSSL_FN_ULONG ex_add_num0_num0[] = {
     OSSL_FN_ULONG64_C(0x00000000, 0x00000002),
     OSSL_FN_ULONG_C(0x1),
 };
+/* $num0 + $num1 == 0x8000000180000001 */
 static const OSSL_FN_ULONG ex_add_num0_num1[] = {
     OSSL_FN_ULONG64_C(0x80000001, 0x80000001),
 };
+/* $num0 + $num2 == 0x8123456789abcdf0 */
 static const OSSL_FN_ULONG ex_add_num0_num2[] = {
     OSSL_FN_ULONG64_C(0x81234567, 0x89abcdf0),
 };
+/* $num0 + $num3 == 0x17edcba9876543211 */
 static const OSSL_FN_ULONG ex_add_num0_num3[] = {
     OSSL_FN_ULONG64_C(0x7edcba98, 0x76543211),
     OSSL_FN_ULONG_C(0x1),
