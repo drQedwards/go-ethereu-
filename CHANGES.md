@@ -105,6 +105,11 @@ OpenSSL Releases
 
    *Helen Zhang*
 
+ * Added AVX-512 and VAES optimizations for AES-CTR
+   Decryption performance on large input sizes(>=1024B) improved by 2.5x to 4x, 
+
+   *Madan Mohan Manokar*
+
 ### Changes between 3.6 and 4.0.0 [14 Apr 2026]
 
  * Added `-expected-rpks` option to the `openssl s_client`
