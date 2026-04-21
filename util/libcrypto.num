@@ -4058,7 +4058,7 @@ PKCS12_BAGS_it                          4055	4_0_0	EXIST::FUNCTION:
 PKCS12_SAFEBAGS_it                      4056	4_0_0	EXIST::FUNCTION:
 PKCS12_AUTHSAFES_it                     4057	4_0_0	EXIST::FUNCTION:
 PKCS12_PBE_add                          4058	4_0_0	EXIST::FUNCTION:
-PKCS12_parse                            4059	4_0_0	EXIST::FUNCTION:
+PKCS12_parse                            4059	4_0_0	EXIST::FUNCTION:DEPRECATEDIN_4_1
 PKCS12_create                           4060	4_0_0	EXIST::FUNCTION:
 PKCS12_create_ex                        4061	4_0_0	EXIST::FUNCTION:
 PKCS12_create_ex2                       4062	4_0_0	EXIST::FUNCTION:
@@ -5719,3 +5719,12 @@ CTLOG_STORE_add0_log                    ?	4_1_0	EXIST::FUNCTION:CT
 CRYPTO_atomic_load_ptr                  ?	4_1_0	EXIST::FUNCTION:
 CRYPTO_atomic_store_ptr                 ?	4_1_0	EXIST::FUNCTION:
 CRYPTO_atomic_cmp_exch_ptr              ?	4_1_0	EXIST::FUNCTION:
+PKCS12_SAFEBAG_get1_skey                ?	4_1_0	EXIST::FUNCTION:
+PKCS12_decrypt_secretbag                ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_new                    ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_free                   ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_set_pkey               ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_set_cert               ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_set_ca                 ?	4_1_0	EXIST::FUNCTION:
+PKCS12_PARSE_CTX_set_skey               ?	4_1_0	EXIST::FUNCTION:
+PKCS12_parse_ex                         ?	4_1_0	EXIST::FUNCTION:
