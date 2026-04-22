@@ -42,4 +42,13 @@ struct pkcs12_bag_st {
     } value;
 };
 
+struct pkcs12_parse_ctx_st {
+    EVP_PKEY **pkey;
+    X509 **cert;
+    STACK_OF(X509) **ca;
+    EVP_SKEY **skey;
+    /* internal: temporary cert collection used during parsing */
+    STACK_OF(X509) *ocerts;
+};
+
 const PKCS7_CTX *ossl_pkcs12_get0_pkcs7ctx(const PKCS12 *p12);
