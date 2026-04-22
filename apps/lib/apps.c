@@ -2524,12 +2524,12 @@ int check_cert_might_be_valid(BIO *bio, X509 *x, const char *checkhost,
     }
 
     if (!X509_VERIFY_PARAM_set1_email(vpm, checkemail, 0)) {
-        maybe_printf(bio, "Invalid email address %s\n", checkemail);
+        maybe_printf(bio, "Invalid email address: %s\n", checkemail);
         goto err;
     }
 
     if (!X509_VERIFY_PARAM_set1_ip_asc(vpm, checkip)) {
-        maybe_printf(bio, "Invalid ip address %s\n", checkip);
+        maybe_printf(bio, "Invalid IP address: %s\n", checkip);
         goto err;
     }
 

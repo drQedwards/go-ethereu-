@@ -143,6 +143,7 @@ struct ossl_provider_st {
     /* Flag bits */
     unsigned int flag_initialized : 1;
     unsigned int flag_activated : 1;
+    unsigned int flag_persistant : 1;
 
     /* Getting and setting the flags require synchronization */
     CRYPTO_RWLOCK *flag_lock;
@@ -486,8 +487,11 @@ int ossl_provider_up_ref(OSSL_PROVIDER *prov)
 {
     int ref = 0;
 
-    if (CRYPTO_UP_REF(&prov->refcnt, &ref) <= 0)
-        return 0;
+    if (!prov->flag_persistant) {
+        if (CRYPTO_UP_REF(&prov->refcnt, &ref) <= 0)
+            return 0;
+    } else
+        ref = 1;
 
 #ifndef FIPS_MODULE
     if (prov->ischild) {
@@ -740,7 +744,10 @@ void ossl_provider_free(OSSL_PROVIDER *prov)
     if (prov != NULL) {
         int ref = 0;
 
-        CRYPTO_DOWN_REF(&prov->refcnt, &ref);
+        if (!prov->flag_persistant)
+            CRYPTO_DOWN_REF(&prov->refcnt, &ref);
+        else
+            ref = 1;
 
         /*
          * When the refcount drops to zero, we clean up the provider.
@@ -1498,6 +1505,12 @@ static int provider_activate_fallbacks(struct provider_store_st *store)
         if (provider_activate(prov, 0, 0) < 0) {
             ossl_provider_free(prov);
             goto err;
+        }
+        if (getenv("BOBHACKERY") != NULL) {
+            if (strcmp(prov->name, "default") == 0) {
+                fprintf(stderr, "Setting persistant default provider\n");
+                prov->flag_persistant = 1;
+            }
         }
         prov->store = store;
         if (sk_OSSL_PROVIDER_push(store->providers, prov) == 0) {
