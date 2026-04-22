@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,8 +61,23 @@ static void testfile(const char *pathname)
 int main(int argc, char **argv)
 {
     int n;
+#ifndef OPENSSL_NO_CRYPTO_MDEBUG
+    const char *countenv = getenv("OPENSSL_MALLOC_COUNT");
+    int do_count = countenv != NULL && *countenv != '\0' && *countenv != '0';
+    int init_count = 0;
+#endif
 
-    FuzzerInitialize(&argc, &argv);
+    if (FuzzerInitialize(&argc, &argv) < 0) {
+        /* init failure under memfail testing is expected */
+        if (getenv("OPENSSL_MALLOC_FAILURES") != NULL)
+            return 0;
+        return 1;
+    }
+
+#ifndef OPENSSL_NO_CRYPTO_MDEBUG
+    if (do_count)
+        CRYPTO_get_alloc_counts(&init_count, NULL, NULL);
+#endif
 
     for (n = 1; n < argc; ++n) {
         size_t dirname_len = strlen(argv[n]);
@@ -93,13 +108,23 @@ int main(int argc, char **argv)
         OPENSSL_DIR_end(&ctx);
 
         /* If it wasn't a directory, treat it as a file instead */
-        if (!wasdir)
+        if (!wasdir) {
             testfile(argv[n]);
+#ifndef OPENSSL_NO_CRYPTO_MDEBUG
+            if (do_count) {
+                int mcount = 0;
+
+                CRYPTO_get_alloc_counts(&mcount, NULL, NULL);
+                printf("# alloc_count: skip %d count %d\n",
+                       init_count, mcount - init_count);
+                fflush(stdout);
+            }
+#endif
+        }
 
         free(pathname);
     }
 
     FuzzerCleanup();
-
     return 0;
 }

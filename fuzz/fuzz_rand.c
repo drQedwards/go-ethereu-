@@ -158,8 +158,17 @@ void FuzzerSetRand(void)
 {
     if (!OSSL_PROVIDER_add_builtin(NULL, "fuzz-rand", fuzz_rand_provider_init)
         || !RAND_set_DRBG_type(NULL, "fuzz", NULL, NULL, NULL)
-        || (r_prov = OSSL_PROVIDER_try_load(NULL, "fuzz-rand", 1)) == NULL)
-        exit(1);
+        || (r_prov = OSSL_PROVIDER_try_load(NULL, "fuzz-rand", 1)) == NULL) {
+        /*
+         * If OPENSSL_MALLOC_FAILURES is active, an init failure is
+         * expected when the allocation failure lands in the init
+         * phase.  Exit cleanly instead of signalling an error.
+         */
+        if (getenv("OPENSSL_MALLOC_FAILURES") != NULL)
+            exit(0);
+        else
+            exit(1);
+    }
 }
 
 void FuzzerClearRand(void)
