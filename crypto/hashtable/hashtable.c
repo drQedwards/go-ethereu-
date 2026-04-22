@@ -507,7 +507,7 @@ static int grow_hashtable(HT *h, size_t oldsize)
             }
             if (rehashed == 0) {
                 /* we ran out of space in a neighborhood, grow again */
-                OPENSSL_free(newmd->neighborhoods);
+                OPENSSL_free(newmd->neighborhood_ptr_to_free);
                 OPENSSL_free(newmd);
                 return grow_hashtable(h, newsize);
             }
@@ -538,7 +538,7 @@ static int grow_hashtable(HT *h, size_t oldsize)
 out:
     return rc;
 out_free:
-    OPENSSL_free(newmd->neighborhoods);
+    OPENSSL_free(newmd->neighborhood_ptr_to_free);
     OPENSSL_free(newmd);
     goto out;
 }
