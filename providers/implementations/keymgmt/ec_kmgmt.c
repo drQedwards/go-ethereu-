@@ -250,17 +250,8 @@ static ossl_inline int otherparams_to_params(const EC_KEY *ec, OSSL_PARAM_BLD *t
 {
     int ecdh_cofactor_mode = 0, group_check = 0;
     const char *name = NULL;
-    point_conversion_form_t format;
 
     if (ec == NULL)
-        return 0;
-
-    format = EC_KEY_get_conv_form(ec);
-    name = ossl_ec_pt_format_id2name((int)format);
-    if (name != NULL
-        && !ossl_param_build_set_utf8_string(tmpl, params,
-            OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
-            name))
         return 0;
 
     group_check = EC_KEY_get_flags(ec) & EC_FLAG_CHECK_NAMED_GROUP_MASK;
@@ -505,6 +496,10 @@ static int ec_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
      *   - domain parameters must always be requested
      *   - private key must be requested alongside public key
      *   - other parameters are always optional
+     *
+     * The first rule is load-bearing: otherparams_to_params() omits
+     * point-format on the assumption that ossl_ec_group_todata(),
+     * which runs only on the domain-params path, has already emitted it.
      */
     if ((selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) == 0)
         return 0;
