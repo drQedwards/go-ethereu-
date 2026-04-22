@@ -1508,7 +1508,7 @@ static int provider_activate_fallbacks(struct provider_store_st *store)
         }
         if (getenv("BOBHACKERY") != NULL) {
             if (strcmp(prov->name, "default") == 0) {
-                fprintf(stderr, "Setting persistant default provider\n");
+                fprintf(stderr, "Setting persistent default provider\n");
                 prov->flag_persistant = 1;
             }
         }
