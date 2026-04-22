@@ -2473,7 +2473,7 @@ int check_cert_might_be_valid(BIO *bio, X509 *x, const char *checkhost,
     X509_VERIFY_PARAM *vpm = NULL;
 
     if (x == NULL) {
-        maybe_printf(bio, "Internal error, NULL certificiate\n");
+        maybe_printf(bio, "Internal error, NULL certificate\n");
         goto err;
     }
 
