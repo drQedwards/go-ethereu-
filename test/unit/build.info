@@ -1,1 +1,12 @@
 # Make sure all tests have WRAP otherwise -lcmocka is not added.
+
+PROGRAMS{noinst}=ssl/statem/test_statem_clnt_tran
+SOURCE[ssl/statem/test_statem_clnt_tran]=ssl/statem/test_statem_clnt_tran.c
+INCLUDE[ssl/statem/test_statem_clnt_tran]=../../include ../../include/internal \
+                                     ../../ssl ../../ssl/statem
+DEPEND[ssl/statem/test_statem_clnt_tran]=../../libssl.a ../../libcrypto.a
+WRAP[ssl/statem/test_statem_clnt_tran]=ossl_statem_fatal \
+                                        ssl3_renegotiate_check \
+                                        tls_setup_handshake \
+                                        tls13_restore_handshake_digest_for_pha \
+                                        OPENSSL_die
