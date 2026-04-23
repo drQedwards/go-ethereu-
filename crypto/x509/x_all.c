@@ -34,6 +34,9 @@
 
 int X509_verify(const X509 *a, EVP_PKEY *r)
 {
+    if (a->sig_alg.algorithm->data == NULL)
+        return -1;
+
     if (X509_ALGOR_cmp(&a->sig_alg, &a->cert_info.signature) != 0)
         return 0;
 
