@@ -1,13 +1,11 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
-
-#define OSSL_FORCE_ERR_STATE
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -26,9 +24,6 @@
 #include "internal/constant_time.h"
 #include "internal/e_os.h"
 #include "err_local.h"
-
-/* Forward declaration in case it's not published because of configuration */
-ERR_STATE *ERR_get_state(void);
 
 #ifndef OPENSSL_NO_ERR
 static int err_load_strings(const ERR_STRING_DATA *str);
@@ -333,7 +328,7 @@ void ERR_clear_error(void)
     int i;
     ERR_STATE *es;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL)
         return;
 
@@ -447,7 +442,7 @@ static unsigned long get_error_values(ERR_GET_ACTION g,
     ERR_STATE *es;
     unsigned long ret;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(1);
     if (es == NULL)
         return 0;
 
@@ -650,22 +645,13 @@ static void err_delete_thread_state(void *unused)
     OSSL_ERR_STATE_free(state);
 }
 
-#ifndef OPENSSL_NO_DEPRECATED_1_1_0
-void ERR_remove_thread_state(void *dummy)
-{
-}
-#endif
-
-#ifndef OPENSSL_NO_DEPRECATED_1_0_0
-void ERR_remove_state(unsigned long pid)
-{
-}
-#endif
-
-ERR_STATE *ossl_err_get_state_int(void)
+ERR_STATE *ossl_err_get_state_int(int save_sys_error)
 {
     ERR_STATE *state;
-    int saveerrno = get_last_sys_error();
+    int saveerrno = 0;
+
+    if (save_sys_error)
+        saveerrno = get_last_sys_error();
 
     if (!OPENSSL_init_crypto(OPENSSL_INIT_BASE_ONLY, NULL))
         return NULL;
@@ -700,16 +686,10 @@ ERR_STATE *ossl_err_get_state_int(void)
         OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
     }
 
-    set_sys_error(saveerrno);
+    if (save_sys_error)
+        set_sys_error(saveerrno);
     return state;
 }
-
-#ifndef OPENSSL_NO_DEPRECATED_3_0
-ERR_STATE *ERR_get_state(void)
-{
-    return ossl_err_get_state_int();
-}
-#endif
 
 /*
  * err_shelve_state returns the current thread local error state
@@ -774,7 +754,7 @@ static int err_set_error_data_int(char *data, size_t size, int flags,
 {
     ERR_STATE *es;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(1);
     if (es == NULL)
         return 0;
 
@@ -820,7 +800,7 @@ void ERR_add_error_vdata(int num, va_list args)
     ERR_STATE *es;
 
     /* Get the current error data; if an allocated string get it. */
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(1);
     if (es == NULL)
         return;
     i = es->top;
@@ -877,7 +857,7 @@ void err_clear_last_constant_time(int clear)
     ERR_STATE *es;
     int top;
 
-    es = ossl_err_get_state_int();
+    es = ossl_err_get_state_int(0);
     if (es == NULL)
         return;
 

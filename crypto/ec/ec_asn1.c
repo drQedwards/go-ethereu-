@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -348,7 +348,7 @@ static int ec_asn1_group2curve(const EC_GROUP *group, X9_62_CURVE *curve)
                 ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
                 goto err;
             }
-        ossl_asn1_string_set_bits_left(curve->seed, 0);
+        ossl_asn1_bit_string_set_unused_bits(curve->seed, 0);
         if (!ASN1_BIT_STRING_set(curve->seed, group->seed,
                 (int)group->seed_len)) {
             ERR_raise(ERR_LIB_EC, ERR_R_ASN1_LIB);
@@ -1071,7 +1071,7 @@ int i2d_ECPrivateKey(const EC_KEY *a, unsigned char **out)
             goto err;
         }
 
-        ossl_asn1_string_set_bits_left(priv_key->publicKey, 0);
+        ossl_asn1_bit_string_set_unused_bits(priv_key->publicKey, 0);
         ASN1_STRING_set0(priv_key->publicKey, pub, (int)publen);
         pub = NULL;
     }

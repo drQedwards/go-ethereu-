@@ -584,6 +584,15 @@ In the following list, always the non-default variant is documented: if
 feature `xxxx` is disabled by default then `enable-xxxx` is documented and
 if feature `xxxx` is enabled by default then `no-xxxx` is documented.
 
+### enable-static-vcruntime
+
+Build binaries that do not require that VC runtimes are installed
+
+This option will produce binaries that are "self contained", that do not
+depend upon VC runtime libraries being installed, so can be used on any
+computer running MS Windows.  Without this option, the build will produce
+binaries that rely on the VC runtimes being installed and available.
+
 ### enable-ktls
 
 Build with Kernel TLS support.
@@ -634,9 +643,9 @@ Do not build support for async operations.
 
 Do not use `atexit()` in libcrypto builds.
 
-`atexit()` has varied semantics between platforms and can cause SIGSEGV in some
-circumstances. This option disables the atexit registration of OPENSSL_cleanup.
-By default, NonStop configurations use `no-atexit`.
+Before version 4.0, OpenSSL used to set `atexit()` handler for cleaning up
+global data, and this option allowed to disable that functionality.  `atexit()`
+handler setup was removed in OpenSSL 4.0, so this option does nothing now.
 
 ### no-autoalginit
 
@@ -769,6 +778,10 @@ Enable support for explictitly specified elliptic curves not matching the
 well-known ones. Until this option is on, such curves can't be instantiated
 from ASN.1 formats.
 
+### no-ech
+
+Don't build support for Encrypted Client Hello (ECH) extension.
+
 ### enable-ec_nistp_64_gcc_128
 
 Enable support for optimised implementations of some commonly used NIST
@@ -899,27 +912,23 @@ Build with support for Position Independent Execution.
 
 Don't pin the shared libraries.
 
-By default OpenSSL will attempt to stay in memory until the process exits.
-This is so that libcrypto and libssl can be properly cleaned up automatically
-via an `atexit()` handler.  The handler is registered by libcrypto and cleans
-up both libraries.  On some platforms the `atexit()` handler will run on unload of
-libcrypto (if it has been dynamically loaded) rather than at process exit.
+By default, on supported platforms (such as Linux and GNU Hurd), OpenSSL
+is built with linker options (e.g., `-Wl,-znodelete`) that prevent the
+operating system from unloading the libcrypto and libssl shared libraries
+from memory, even if the application explicitly unloads them using
+`dlclose()`. On platforms that do not support these options, this feature
+is disabled by default.
 
-This option can be used to stop OpenSSL from attempting to stay in memory until the
-process exits.  This could lead to crashes if either libcrypto or libssl have
-already been unloaded at the point that the atexit handler is invoked, e.g.  on a
-platform which calls `atexit()` on unload of the library, and libssl is unloaded
-before libcrypto then a crash is likely to happen.
+This option prevents the addition of those linker flags, allowing the
+shared libraries to be completely unloaded from the process address space.
+This is useful for applications that dynamically load and unload OpenSSL
+plugins to conserve memory.
 
 Note that shared library pinning is not automatically disabled for static builds,
 i.e., `no-shared` does not imply `no-pinshared`. This may come as a surprise when
 linking libcrypto statically into a shared third-party library, because in this
 case the shared library will be pinned. To prevent this behaviour, you need to
 configure the static build using `no-shared` and `no-pinshared` together.
-
-Applications can suppress running of the `atexit()` handler at run time by
-using the `OPENSSL_INIT_NO_ATEXIT` option to `OPENSSL_init_crypto()`.
-See the man page for it for further details.
 
 ### no-posix-io
 
@@ -1173,7 +1182,7 @@ The `lms` algorithm support is currently limited to verification only as per
 
     no-{aria|bf|blake2|camellia|cast|chacha|cmac|
         des|dh|dsa|
-        ec|ec2m|ecdh|ecdsa|hmac-drbg-kdf|idea|kbkdf|krb5kdf|
+        ec|ec2m|ecdh|ecdsa|hmac-drbg-kdf|idea|ikev2kdf|kbkdf|krb5kdf|
         md4|mdc2|
         ml-dsa|ml-kem|
         ocb|poly1305|pvkkdf|rc2|rc4|rmd160|scrypt|

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -421,7 +421,7 @@ static int make_addressPrefix(IPAddressOrRange **result, unsigned char *addr,
         goto err;
     if (bitlen > 0)
         aor->u.addressPrefix->data[bytelen - 1] &= ~(0xFF >> bitlen);
-    ossl_asn1_string_set_bits_left(aor->u.addressPrefix, 8 - bitlen);
+    ossl_asn1_bit_string_set_unused_bits(aor->u.addressPrefix, 8 - bitlen);
 
     *result = aor;
     return 1;
@@ -463,7 +463,7 @@ static int make_addressRange(IPAddressOrRange **result,
         ;
     if (!ASN1_BIT_STRING_set(aor->u.addressRange->min, min, i))
         goto err;
-    ossl_asn1_string_set_bits_left(aor->u.addressRange->min, 0);
+    ossl_asn1_bit_string_set_unused_bits(aor->u.addressRange->min, 0);
     if (i > 0) {
         unsigned char b = min[i - 1];
         int j = 1;
@@ -477,7 +477,7 @@ static int make_addressRange(IPAddressOrRange **result,
         ;
     if (!ASN1_BIT_STRING_set(aor->u.addressRange->max, max, i))
         goto err;
-    ossl_asn1_string_set_bits_left(aor->u.addressRange->max, 0);
+    ossl_asn1_bit_string_set_unused_bits(aor->u.addressRange->max, 0);
     if (i > 0) {
         unsigned char b = max[i - 1];
         int j = 1;
@@ -1210,7 +1210,7 @@ int X509v3_addr_subset(IPAddrBlocks *a, IPAddrBlocks *b)
  * X509_V_OK.
  */
 static int addr_validate_path_internal(X509_STORE_CTX *ctx,
-    STACK_OF(X509) *chain,
+    const STACK_OF(X509) *chain,
     IPAddrBlocks *ext)
 {
     IPAddrBlocks *child = NULL;
@@ -1344,7 +1344,7 @@ int X509v3_addr_validate_path(X509_STORE_CTX *ctx)
  * RFC 3779 2.3 path validation of an extension.
  * Test whether chain covers extension.
  */
-int X509v3_addr_validate_resource_set(STACK_OF(X509) *chain,
+int X509v3_addr_validate_resource_set(const STACK_OF(X509) *chain,
     IPAddrBlocks *ext, int allow_inheritance)
 {
     if (ext == NULL)

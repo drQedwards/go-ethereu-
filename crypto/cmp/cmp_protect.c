@@ -72,8 +72,8 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
         prot_part_der_len = (size_t)len;
 
         pbm_str = (ASN1_STRING *)ppval;
-        pbm_str_uc = pbm_str->data;
-        pbm = d2i_OSSL_CRMF_PBMPARAMETER(NULL, &pbm_str_uc, pbm_str->length);
+        pbm_str_uc = ASN1_STRING_get0_data(pbm_str);
+        pbm = d2i_OSSL_CRMF_PBMPARAMETER(NULL, &pbm_str_uc, ASN1_STRING_length(pbm_str));
         if (pbm == NULL) {
             ERR_raise(ERR_LIB_CMP, CMP_R_WRONG_ALGORITHM_OID);
             goto end;
@@ -81,14 +81,14 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
 
         if (!OSSL_CRMF_pbm_new(ctx->libctx, ctx->propq,
                 pbm, prot_part_der, prot_part_der_len,
-                ctx->secretValue->data, ctx->secretValue->length,
+                ASN1_STRING_get0_data(ctx->secretValue), ASN1_STRING_length(ctx->secretValue),
                 &protection, &sig_len))
             goto end;
 
         if (sig_len > INT_MAX || (prot = ASN1_BIT_STRING_new()) == NULL)
             goto end;
         /* OpenSSL by default encodes all bit strings as ASN.1 NamedBitList */
-        ossl_asn1_string_set_bits_left(prot, 0);
+        ossl_asn1_bit_string_set_unused_bits(prot, 0);
         if (!ASN1_BIT_STRING_set(prot, protection, (int)sig_len)) {
             ASN1_BIT_STRING_free(prot);
             prot = NULL;

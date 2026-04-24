@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -724,7 +724,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
         }
 
         if ((utype == V_ASN1_BIT_STRING) && no_unused)
-            ossl_asn1_string_set_bits_left(atmp->value.asn1_string, 0);
+            ossl_asn1_bit_string_set_unused_bits(atmp->value.asn1_string, 0);
 
         break;
 

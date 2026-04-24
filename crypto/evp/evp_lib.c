@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -590,6 +590,7 @@ unsigned char *EVP_CIPHER_CTX_buf_noconst(EVP_CIPHER_CTX *ctx)
     return ctx->buf;
 }
 
+#ifndef OPENSSL_NO_DEPRECATED_4_1
 int EVP_CIPHER_CTX_get_num(const EVP_CIPHER_CTX *ctx)
 {
     int ok;
@@ -615,6 +616,7 @@ int EVP_CIPHER_CTX_set_num(EVP_CIPHER_CTX *ctx, int num)
         ctx->num = (int)n;
     return ok != 0;
 }
+#endif /* OPENSSL_NO_DEPRECATED_4_1 */
 
 int EVP_CIPHER_get_key_length(const EVP_CIPHER *cipher)
 {

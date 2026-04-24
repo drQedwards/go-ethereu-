@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,6 +23,7 @@
 #include <openssl/proverr.h>
 #include "crypto/rsa.h"
 #include "internal/cryptlib.h"
+#include "internal/fips.h"
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
@@ -89,6 +90,12 @@ static void *rsakem_newctx(void *provctx)
 
     if (!ossl_prov_is_running())
         return NULL;
+
+#ifdef FIPS_MODULE
+    if (!ossl_deferred_self_test(PROV_LIBCTX_OF(provctx),
+            ST_ID_ASYM_CIPHER_RSA_ENC))
+        return NULL;
+#endif
 
     prsactx = OPENSSL_zalloc(sizeof(PROV_RSA_CTX));
     if (prsactx == NULL)
@@ -308,16 +315,17 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     /* Step(3): out = RSAEP((n,e), z) */
     ret = RSA_public_encrypt((int)nlen, secret, out, prsactx->rsa,
         RSA_NO_PADDING);
-    if (ret) {
-        ret = 1;
-        if (outlen != NULL)
-            *outlen = nlen;
-        if (secretlen != NULL)
-            *secretlen = nlen;
-    } else {
+    if (ret <= 0 || ret != (int)nlen) {
         OPENSSL_cleanse(secret, nlen);
+        return 0;
     }
-    return ret;
+
+    if (outlen != NULL)
+        *outlen = nlen;
+    if (secretlen != NULL)
+        *secretlen = nlen;
+
+    return 1;
 }
 
 /**

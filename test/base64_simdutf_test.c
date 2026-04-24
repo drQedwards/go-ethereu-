@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2025-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,7 @@ static void fuzz_fill_encode_ctx(EVP_ENCODE_CTX *ctx, int max_fill)
         ctx->enc_data[i] = (unsigned char)(rand() & 0xFF);
     ctx->line_num = rand() % (EVP_ENCODE_B64_LENGTH + 1);
 }
-static inline uint32_t next_u32(uint32_t *state)
+static ossl_inline uint32_t next_u32(uint32_t *state)
 {
     *state = (*state * 1664525u) + 1013904223u;
     return *state;
