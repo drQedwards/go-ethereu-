@@ -52,7 +52,10 @@ int sd_load(const char *filename, SD *lib, ossl_unused int type)
 
 int sd_sym(SD lib, const char *symname, SD_SYM *sym)
 {
-    *sym = (SD_SYM)GetProcAddress(lib, symname);
+    FARPROC fp = GetProcAddress(lib, symname);
+
+    /* as SD_SYM is void*, we have to avoid forbidden C conversion with pedantic warnings */
+    memcpy(sym, &fp, sizeof(fp));
     return *sym != NULL;
 }
 
