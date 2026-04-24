@@ -184,6 +184,7 @@ X509_ALGOR *PKCS5_pbkdf2_set_ex(int iter, unsigned char *salt, int saltlen,
     X509_ALGOR *keyfunc = NULL;
     PBKDF2PARAM *kdf = NULL;
     ASN1_OCTET_STRING *osalt = NULL;
+    unsigned char *tmp = NULL;
 
     if ((kdf = PBKDF2PARAM_new()) == NULL) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
@@ -203,17 +204,17 @@ X509_ALGOR *PKCS5_pbkdf2_set_ex(int iter, unsigned char *salt, int saltlen,
     }
     if (saltlen == 0)
         saltlen = PKCS5_DEFAULT_PBE2_SALT_LEN;
-    if ((osalt->data = OPENSSL_malloc(saltlen)) == NULL)
+    if ((tmp = OPENSSL_malloc(saltlen)) == NULL)
         goto err;
 
-    osalt->length = saltlen;
-
     if (salt) {
-        memcpy(osalt->data, salt, saltlen);
-    } else if (RAND_bytes_ex(libctx, osalt->data, saltlen, 0) <= 0) {
+        memcpy(tmp, salt, saltlen);
+    } else if (RAND_bytes_ex(libctx, tmp, saltlen, 0) <= 0) {
+        OPENSSL_free(tmp);
         ERR_raise(ERR_LIB_ASN1, ERR_R_RAND_LIB);
         goto err;
     }
+    ASN1_STRING_set0(osalt, tmp, saltlen);
 
     if (iter <= 0)
         iter = PKCS5_DEFAULT_ITER;

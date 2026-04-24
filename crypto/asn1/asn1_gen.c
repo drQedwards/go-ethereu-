@@ -448,8 +448,7 @@ static ASN1_TYPE *asn1_multi(int utype, const char *section, X509V3_CTX *cnf,
         goto bad;
 
     ret->type = utype;
-    ret->value.asn1_string->data = der;
-    ret->value.asn1_string->length = derlen;
+    ASN1_STRING_set0(ret->value.asn1_string, der, derlen);
 
     der = NULL;
 
@@ -647,7 +646,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
             ERR_raise(ERR_LIB_ASN1, ASN1_R_TIME_NOT_ASCII_FORMAT);
             goto bad_form;
         }
-        if ((atmp->value.asn1_string = ASN1_STRING_new()) == NULL) {
+        if ((atmp->value.asn1_string = ASN1_STRING_type_new(utype)) == NULL) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_str;
         }
@@ -655,7 +654,6 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
             ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_str;
         }
-        atmp->value.asn1_string->type = utype;
         if (!ASN1_TIME_check(atmp->value.asn1_string)) {
             ERR_raise(ERR_LIB_ASN1, ASN1_R_ILLEGAL_TIME_VALUE);
             goto bad_str;
@@ -692,7 +690,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
 
     case V_ASN1_BIT_STRING:
     case V_ASN1_OCTET_STRING:
-        if ((atmp->value.asn1_string = ASN1_STRING_new()) == NULL) {
+        if ((atmp->value.asn1_string = ASN1_STRING_type_new(utype)) == NULL) {
             ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
             goto bad_form;
         }
@@ -702,9 +700,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
                 ERR_raise(ERR_LIB_ASN1, ASN1_R_ILLEGAL_HEX);
                 goto bad_str;
             }
-            atmp->value.asn1_string->data = rdata;
-            atmp->value.asn1_string->length = rdlen;
-            atmp->value.asn1_string->type = utype;
+            ASN1_STRING_set0(atmp->value.asn1_string, rdata, rdlen);
         } else if (format == ASN1_GEN_FORMAT_ASCII) {
             if (!ASN1_STRING_set(atmp->value.asn1_string, str, -1)) {
                 ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);

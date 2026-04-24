@@ -25,7 +25,7 @@ static int pkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         /* The structure is still valid during ASN1_OP_FREE_PRE */
         key = (PKCS8_PRIV_KEY_INFO *)*pval;
         if (key->pkey)
-            OPENSSL_cleanse(key->pkey->data, key->pkey->length);
+            OPENSSL_cleanse(key->pkey->data, ASN1_STRING_length(key->pkey));
         break;
     case ASN1_OP_D2I_POST:
         /* Insist on a valid version now that the structure is decoded */

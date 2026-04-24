@@ -24,8 +24,8 @@ int ASN1_INTEGER_cmp(const ASN1_INTEGER *x, const ASN1_INTEGER *y)
 {
     int neg, ret;
     /* Compare signs */
-    neg = x->type & V_ASN1_NEG;
-    if (neg != (y->type & V_ASN1_NEG)) {
+    neg = ASN1_STRING_type(x) & V_ASN1_NEG;
+    if (neg != (ASN1_STRING_type(y) & V_ASN1_NEG)) {
         if (neg)
             return -1;
         else
@@ -207,7 +207,8 @@ static size_t c2i_ibuf(unsigned char *b, int *pneg,
 int ossl_i2c_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
 {
     unsigned char *ptr = pp != NULL ? *pp : NULL;
-    size_t ret = i2c_ibuf(a->data, a->length, a->type & V_ASN1_NEG, &ptr);
+    size_t ret = i2c_ibuf(ASN1_STRING_get0_data(a), ASN1_STRING_length(a),
+        ASN1_STRING_type(a) & V_ASN1_NEG, &ptr);
 
     if (ret > INT_MAX) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_TOO_LARGE);
@@ -300,6 +301,7 @@ ASN1_INTEGER *ossl_c2i_ASN1_INTEGER(ASN1_INTEGER **a, const unsigned char **pp,
     long len)
 {
     ASN1_INTEGER *ret = NULL;
+    unsigned char *tmp = NULL;
     size_t r;
     int neg;
 
@@ -309,19 +311,23 @@ ASN1_INTEGER *ossl_c2i_ASN1_INTEGER(ASN1_INTEGER **a, const unsigned char **pp,
         return NULL;
 
     if ((a == NULL) || ((*a) == NULL)) {
-        ret = ASN1_INTEGER_new();
+        ret = ASN1_STRING_type_new(V_ASN1_INTEGER);
         if (ret == NULL)
             return NULL;
-        ret->type = V_ASN1_INTEGER;
     } else
         ret = *a;
 
-    if (r > INT_MAX || ASN1_STRING_set(ret, NULL, (int)r) == 0) {
+    if (r > INT_MAX) {
         ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         goto err;
     }
 
-    c2i_ibuf(ret->data, &neg, *pp, len);
+    tmp = OPENSSL_malloc(r);
+    if (tmp == NULL)
+        goto err;
+
+    c2i_ibuf(tmp, &neg, *pp, len);
+    ASN1_STRING_set0(ret, tmp, (int)r);
 
     if (neg != 0)
         ret->type |= V_ASN1_NEG;
@@ -344,11 +350,12 @@ static int asn1_string_get_int64(int64_t *pr, const ASN1_STRING *a, int itype)
         ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
-    if ((a->type & ~V_ASN1_NEG) != itype) {
+    if ((ASN1_STRING_type(a) & ~V_ASN1_NEG) != itype) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_WRONG_INTEGER_TYPE);
         return 0;
     }
-    return asn1_get_int64(pr, a->data, a->length, a->type & V_ASN1_NEG);
+    return asn1_get_int64(pr, ASN1_STRING_get0_data(a), ASN1_STRING_length(a),
+        ASN1_STRING_type(a) & V_ASN1_NEG);
 }
 
 static int asn1_string_set_int64(ASN1_STRING *a, int64_t r, int itype)
@@ -381,15 +388,15 @@ static int asn1_string_get_uint64(uint64_t *pr, const ASN1_STRING *a,
         ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
-    if ((a->type & ~V_ASN1_NEG) != itype) {
+    if ((ASN1_STRING_type(a) & ~V_ASN1_NEG) != itype) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_WRONG_INTEGER_TYPE);
         return 0;
     }
-    if (a->type & V_ASN1_NEG) {
+    if (ASN1_STRING_type(a) & V_ASN1_NEG) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_ILLEGAL_NEGATIVE_VALUE);
         return 0;
     }
-    return asn1_get_uint64(pr, a->data, a->length);
+    return asn1_get_uint64(pr, ASN1_STRING_get0_data(a), ASN1_STRING_length(a));
 }
 
 static int asn1_string_set_uint64(ASN1_STRING *a, uint64_t r, int itype)
@@ -419,9 +426,8 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
     int i = 0;
 
     if ((a == NULL) || ((*a) == NULL)) {
-        if ((ret = ASN1_INTEGER_new()) == NULL)
+        if ((ret = ASN1_STRING_type_new(V_ASN1_INTEGER)) == NULL)
             return NULL;
-        ret->type = V_ASN1_INTEGER;
     } else
         ret = (*a);
 
@@ -481,6 +487,7 @@ static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
     int atype)
 {
     ASN1_INTEGER *ret;
+    unsigned char *tmp = NULL;
     int len;
 
     if (ai == NULL) {
@@ -503,17 +510,14 @@ static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
     if (len == 0)
         len = 1;
 
-    if (ASN1_STRING_set(ret, NULL, len) == 0) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
+    tmp = OPENSSL_zalloc(len);
+    if (tmp == NULL)
         goto err;
-    }
 
-    /* Correct zero case */
-    if (BN_is_zero(bn))
-        ret->data[0] = 0;
-    else
-        len = BN_bn2bin(bn, ret->data);
-    ret->length = len;
+    /* Correct zero case: tmp is already zeroed by OPENSSL_zalloc */
+    if (!BN_is_zero(bn))
+        len = BN_bn2bin(bn, tmp);
+    ASN1_STRING_set0(ret, tmp, len);
     return ret;
 err:
     if (ret != ai)
@@ -526,17 +530,17 @@ static BIGNUM *asn1_string_to_bn(const ASN1_INTEGER *ai, BIGNUM *bn,
 {
     BIGNUM *ret;
 
-    if ((ai->type & ~V_ASN1_NEG) != itype) {
+    if ((ASN1_STRING_type(ai) & ~V_ASN1_NEG) != itype) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_WRONG_INTEGER_TYPE);
         return NULL;
     }
 
-    ret = BN_bin2bn(ai->data, ai->length, bn);
+    ret = BN_bin2bn(ASN1_STRING_get0_data(ai), ASN1_STRING_length(ai), bn);
     if (ret == NULL) {
         ERR_raise(ERR_LIB_ASN1, ASN1_R_BN_LIB);
         return NULL;
     }
-    if (ai->type & V_ASN1_NEG)
+    if (ASN1_STRING_type(ai) & V_ASN1_NEG)
         BN_set_negative(ret, 1);
     return ret;
 }
@@ -611,9 +615,9 @@ long ASN1_ENUMERATED_get(const ASN1_ENUMERATED *a)
     int64_t r;
     if (a == NULL)
         return 0;
-    if ((a->type & ~V_ASN1_NEG) != V_ASN1_ENUMERATED)
+    if ((ASN1_STRING_type(a) & ~V_ASN1_NEG) != V_ASN1_ENUMERATED)
         return -1;
-    if (a->length > (int)sizeof(long))
+    if (ASN1_STRING_length(a) > (int)sizeof(long))
         return 0xffffffffL;
     i = ASN1_ENUMERATED_get_int64(&r, a);
     if (i == 0)
