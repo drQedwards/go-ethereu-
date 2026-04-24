@@ -342,12 +342,10 @@ int EVP_default_properties_enable_fips(OSSL_LIB_CTX *libctx, int enable);
 /* 0x26 is unused */
 /* Tell the cipher it's doing a speed test (SIV disallows multiple ops) */
 #define EVP_CTRL_SET_SPEED 0x27
-/* Get the unprotectedAttrs from cipher ctx */
-#define EVP_CTRL_PROCESS_UNPROTECTED 0x28
 /* Get the supplementary wrap cipher */
-#define EVP_CTRL_GET_WRAP_CIPHER 0x29
+#define EVP_CTRL_GET_WRAP_CIPHER 0x28
 /* TLSTREE key diversification */
-#define EVP_CTRL_TLSTREE 0x2A
+#define EVP_CTRL_TLSTREE 0x29
 
 /* Padding modes */
 #define EVP_PADDING_PKCS7 1

@@ -15,6 +15,9 @@
 #include <openssl/rand.h>
 #include <openssl/params.h>
 #include <openssl/core_names.h>
+#include <openssl/x509.h>
+#include <openssl/asn1.h>
+#include <openssl/stack.h>
 #include "internal/cryptlib.h"
 #include "internal/provider.h"
 #include "internal/core.h"
