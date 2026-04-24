@@ -25,7 +25,9 @@ $VERSION = "1.0";
                                          result_file result_dir
                                          pipe with cmdstr
                                          openssl_versions
-                                         ok_nofips is_nofips isnt_nofips));
+                                         ok_nofips is_nofips isnt_nofips
+                                         memfail_env memfail_schedule
+                                         memfail_count memfail_n_for_level));
 
 =head1 NAME
 
@@ -411,6 +413,112 @@ sub perltest {
         return cmd([ @interpreter, @interpreter_args,
                      @prog, @cmdargs ], %opts) -> (shift);
     }
+}
+
+=over 4
+
+=item B<memfail_env SKIP, IDX>
+
+Returns the C<OPENSSL_MALLOC_FAILURES> string that passes exactly
+C<SKIP + IDX - 1> allocations, fails the next one, and passes all
+remaining.  The intent is that SKIP represents the number of allocations
+during initialisation (which must succeed) and IDX is the 1-based index
+of the post-init allocation to fail.
+
+=item B<memfail_schedule TOTAL, N, FILE_IDX>
+
+Returns a list of 1-based allocation indices to fail, evenly spaced
+across the range C<1..TOTAL>.  N is the number of failure points to
+test.  FILE_IDX (default 0) shifts the starting point so that different
+corpus files cover different allocation indices; after cycling through
+C<int(TOTAL/N)> files the full range is covered.
+
+=item B<memfail_count CMD>
+
+Runs CMD once with C<OPENSSL_MALLOC_COUNT=1> and no failures, parses
+the allocation count from the output.  Returns a list C<($skip, $count)>
+where C<$skip> is the number of init allocations and C<$count> is the
+workload allocation count.  Returns C<(0, 0)> on parse failure.
+
+=item B<memfail_n_for_level LEVEL, TOTAL>
+
+Maps a heaviness LEVEL (1=light, 5=very heavy) to a failure-point count
+for a test with TOTAL allocations.  The mapping comes from the environment
+variable C<OSSL_FUZZ_TEST_MEMFAIL>, which is a comma-separated list of
+up to 5 values indexed by level.  Each value is either an absolute count
+(e.g. C<10>) or a percentage of TOTAL (e.g. C<50%>).  Returns 0 if the
+variable is unset or C<0>.
+
+=back
+
+=cut
+
+sub memfail_env {
+    my ($skip, $idx) = @_;
+
+    my $pass = $skip + $idx - 1;
+    return $pass > 0 ? "$pass\@0;1\@100;0\@0" : "1\@100;0\@0";
+}
+
+sub memfail_schedule {
+    my ($total, $n, $file_idx) = @_;
+    $file_idx //= 0;
+
+    return () if $n <= 0 || $total <= 0;
+    $n = $total if $n > $total;
+
+    my $stride = $total / $n;
+    my $offset = $stride >= 1 ? ($file_idx % int($stride + 0.5)) : 0;
+    my %seen;
+    my @indices;
+
+    for my $i (0 .. $n - 1) {
+        my $idx = int(1 + ($i * $stride) + $offset + 0.5);
+        $idx = $total if $idx > $total;
+        $idx = 1 if $idx < 1;
+        push @indices, $idx unless $seen{$idx}++;
+    }
+
+    return @indices;
+}
+
+sub memfail_count {
+    my $cmd = shift;
+
+    local $ENV{OPENSSL_MALLOC_COUNT} = "1";
+    local $ENV{OPENSSL_MALLOC_FAILURES} = "0\@0";
+
+    my @output = run($cmd, capture => 1);
+
+    for (@output) {
+        if (/alloc_count:\s*skip\s+(\d+)\s+count\s+(\d+)/) {
+            return (int($1), int($2));
+        }
+    }
+    return (0, 0);
+}
+
+sub memfail_n_for_level {
+    my ($level, $total) = @_;
+
+    my $spec = $ENV{OSSL_FUZZ_TEST_MEMFAIL};
+    return 0 if !defined $spec || $spec eq '0';
+
+    my @vals = split /,/, $spec;
+
+    $level = 1 if $level < 1;
+    $level = scalar @vals if $level > scalar @vals;
+
+    my $val = $vals[$level - 1];
+    return 0 unless defined $val;
+
+    if ($val =~ /^(\d+)%$/) {
+        return int($total * $1 / 100 + 0.5) || 1;
+    }
+    if ($val =~ /^(\d+)$/) {
+        return int($1);
+    }
+    return 0;
 }
 
 =over 4

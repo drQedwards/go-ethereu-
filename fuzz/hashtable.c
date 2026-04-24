@@ -101,7 +101,9 @@ int FuzzerInitialize(int *argc, char ***argv)
 {
     HT_CONFIG fuzz_conf = { NULL, fuzz_free_cb, NULL, 0, 1, 0 };
 
-    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+    if (!OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL)) {
+        return -1;
+    }
     ERR_clear_error();
     prediction_table = OPENSSL_calloc(65537, sizeof(FUZZER_VALUE));
     if (prediction_table == NULL)
@@ -109,6 +111,7 @@ int FuzzerInitialize(int *argc, char ***argv)
     fuzzer_table = ossl_ht_new(&fuzz_conf);
     if (fuzzer_table == NULL) {
         OPENSSL_free(prediction_table);
+        prediction_table = NULL;
         return -1;
     }
 
@@ -188,9 +191,11 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             rc = ossl_ht_fz_FUZZER_VALUE_insert(fuzzer_table, TO_HT_KEY(&key),
                 valptr, NULL);
 
-        if (rc == -1)
+        if (rc == -1) {
             /* failed to grow the hash table due to too many collisions */
+            ossl_ht_write_unlock(fuzzer_table);
             break;
+        }
 
         /*
          * mark the entry as being allocated
@@ -372,6 +377,8 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             rc_prediction = 1;
 
         htvlist = ossl_ht_filter(fuzzer_table, 1, filter_iterator, &keyval);
+        if (htvlist == NULL)
+            break;
 
         OPENSSL_assert(htvlist->list_len == (size_t)rc_prediction);
 

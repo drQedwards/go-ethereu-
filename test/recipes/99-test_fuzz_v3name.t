@@ -19,4 +19,4 @@ plan tests => 2; # one more due to below require_ok(...)
 
 require_ok(srctop_file('test','recipes','fuzz.pl'));
 
-fuzz_ok($fuzzer);
+fuzz_ok($fuzzer, level => 1);
