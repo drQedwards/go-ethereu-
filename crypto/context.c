@@ -10,6 +10,7 @@
 #include "crypto/cryptlib.h"
 #include <openssl/conf.h>
 #include <openssl/trace.h>
+#include <openssl/provider.h>
 #include "internal/thread_once.h"
 #include "internal/property.h"
 #include "internal/cryptlib.h"
@@ -129,7 +130,7 @@ static int context_init(OSSL_LIB_CTX *ctx)
     exdata_done = 1;
 
     /* P2. We want evp_method_store to be cleaned up before the provider store */
-    ctx->evp_method_store = ossl_method_store_new(ctx);
+    ctx->evp_method_store = ossl_method_store_new(ctx, 0);
     if (ctx->evp_method_store == NULL)
         goto err;
     OSSL_TRACE1(QUERY, "context_init: allocating store %p\n", ctx->evp_method_store);
@@ -151,7 +152,7 @@ static int context_init(OSSL_LIB_CTX *ctx)
      * P2. We want decoder_store/decoder_cache to be cleaned up before the
      * provider store
      */
-    ctx->decoder_store = ossl_method_store_new(ctx);
+    ctx->decoder_store = ossl_method_store_new(ctx, 1);
     if (ctx->decoder_store == NULL)
         goto err;
     ctx->decoder_cache = ossl_decoder_cache_new(ctx);
@@ -159,12 +160,12 @@ static int context_init(OSSL_LIB_CTX *ctx)
         goto err;
 
     /* P2. We want encoder_store to be cleaned up before the provider store */
-    ctx->encoder_store = ossl_method_store_new(ctx);
+    ctx->encoder_store = ossl_method_store_new(ctx, 1);
     if (ctx->encoder_store == NULL)
         goto err;
 
     /* P2. We want loader_store to be cleaned up before the provider store */
-    ctx->store_loader_store = ossl_method_store_new(ctx);
+    ctx->store_loader_store = ossl_method_store_new(ctx, 1);
     if (ctx->store_loader_store == NULL)
         goto err;
 #endif
@@ -253,14 +254,14 @@ err:
     return 0;
 }
 
+static int down_ref_providers(OSSL_PROVIDER *prov, void *arg)
+{
+    ossl_provider_free(prov);
+    return 1;
+}
+
 static void context_deinit_objs(OSSL_LIB_CTX *ctx)
 {
-    /* P2. We want evp_method_store to be cleaned up before the provider store */
-    if (ctx->evp_method_store != NULL) {
-        ossl_method_store_free(ctx->evp_method_store);
-        ctx->evp_method_store = NULL;
-    }
-
     /* P2. */
     if (ctx->drbg != NULL) {
         ossl_rand_ctx_free(ctx->drbg);
@@ -304,6 +305,12 @@ static void context_deinit_objs(OSSL_LIB_CTX *ctx)
     if (ctx->provider_store != NULL) {
         ossl_provider_store_free(ctx->provider_store);
         ctx->provider_store = NULL;
+    }
+
+    /* P2. We want evp_method_store to be cleaned up before the provider store */
+    if (ctx->evp_method_store != NULL) {
+        ossl_method_store_free(ctx->evp_method_store);
+        ctx->evp_method_store = NULL;
     }
 
     /* Default priority. */
@@ -381,6 +388,7 @@ static void context_deinit_objs(OSSL_LIB_CTX *ctx)
         ctx->comp_methods = NULL;
     }
 #endif
+    OSSL_PROVIDER_do_all(ctx, down_ref_providers, NULL);
 }
 
 static int context_deinit(OSSL_LIB_CTX *ctx)
