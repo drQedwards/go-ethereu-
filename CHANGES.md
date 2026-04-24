@@ -41,7 +41,6 @@ OpenSSL Releases
    *Tong Li*
 
  * `EVP_CIPHER_CTX_get_num()` and `EVP_CIPHER_CTX_set_num()' have been deprecated.
-
    Refer to ossl-migration-guide(7) for more info.
 
    *Shane Lontis*
@@ -61,6 +60,10 @@ OpenSSL Releases
    use the existing buffer-based path.
 
    *John Claus*
+
+ * Added TUPLEHASH support as per [SP 800-185].
+
+   *Shane Lontis*
 
  * Added AVX2 optimized ML-DSA NTT operations on `x86_64`.
 
