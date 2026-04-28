@@ -559,6 +559,7 @@ static int ossl_cms_adjust_md(const CMS_CTX *ctx, EVP_PKEY *pk, const EVP_MD **m
 
     if (*md != NULL)
         (void)ERR_set_mark(); /* No error if no default md and user-supplied md is set */
+    tmp_md = ossl_cms_get_default_md(pk, &md_a_must);
     *fetched_md = ossl_cms_get_default_md(ctx, pk, &md_a_must);
     if (*md != NULL)
         (void)ERR_pop_to_mark();

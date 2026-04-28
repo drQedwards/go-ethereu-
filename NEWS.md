@@ -34,6 +34,10 @@ OpenSSL 4.1
 OpenSSL 4.0
 -----------
 
+### Major changes between OpenSSL 4.0.0 and OpenSSL 4.0.1 [under development]
+
+  * none
+
 ### Major changes between OpenSSL 3.6 and OpenSSL 4.0.0 [14 Apr 2026]
 
 OpenSSL 4.0.0 is a feature release adding significant new functionality
@@ -56,6 +60,9 @@ changes:
   * Augmented CRL verification process with several additional checks.
 
   * `libcrypto` no longer cleans up globally allocated data via `atexit()`.
+
+  * `BIO_snprintf()` now uses `snprintf()` provided by libc instead of internal
+    implementation.
 
   * `OPENSSL_cleanup()` now runs in a global destructor, or not at all
     by default.
@@ -91,8 +98,14 @@ changes:
   * Removed `BIO_f_reliable()` implementation without replacement.
     It was broken since 3.0 release without any complaints.
 
+  * Removed deprecated support for custom `EVP_CIPHER`, `EVP_MD`, `EVP_PKEY`,
+    and `EVP_PKEY_ASN1` methods.
+
+  * Removed deprecated fixed SSL/TLS version method functions.
+
   * Removed deprecated functions `ERR_get_state()`, `ERR_remove_state()`
-    and `ERR_remove_thread_state()`. The `ERR_STATE` object is now always opaque.
+    and `ERR_remove_thread_state()`. The `ERR_STATE` object is now always
+    opaque.
 
   * Dropped `darwin-i386{,-cc}` and `darwin-ppc{,64}{,-cc}` targets
     from Configurations.

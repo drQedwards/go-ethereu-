@@ -141,6 +141,16 @@ int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
 
 int ossl_namemap_name2num(const OSSL_NAMEMAP *namemap, const char *name)
 {
+    int number = 0;
+    HT_VALUE *val;
+    NAMENUM_KEY key;
+
+#ifndef FIPS_MODULE
+    if (namemap == NULL)
+        namemap = ossl_namemap_stored(NULL);
+#endif
+
+    if (namemap == NULL || name == NULL)
     if (name == NULL)
         return 0;
     return ossl_namemap_name2num_n(namemap, name, strlen(name));

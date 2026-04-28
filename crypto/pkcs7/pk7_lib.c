@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,7 +49,10 @@ long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg)
     case PKCS7_OP_GET_DETACHED_SIGNATURE:
         if (nid == NID_pkcs7_signed) {
             if (p7->d.sign == NULL || p7->d.sign->contents == NULL
-                    || p7->d.sign->contents->d.ptr == NULL)
+openssl-4.0
+                || p7->d.sign->contents->d.ptr == NULL)
+                || p7->d.sign->contents->d.ptr == NULL)
+ master
                 ret = 1;
             else
                 ret = 0;
