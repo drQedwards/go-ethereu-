@@ -32,6 +32,85 @@ OpenSSL Releases
 ### Changes between 4.0.0 and 4.0.1 [xx XXX xxxx]
 
  * none yet
+### Changes between 4.0 and 4.1 [xx XXX xxxx]
+
+ * Added test framework for testing function memory allocation failures.
+
+   *Jakub Zelenka*
+
+ * Improved DTLS handshake robustness under UDP reordering by buffering and
+   replaying early ChangeCipherSpec (CCS) records at the expected state.
+
+   *Tong Li*
+
+ * `EVP_CIPHER_CTX_get_num()` and `EVP_CIPHER_CTX_set_num()' have been deprecated.
+
+   Refer to ossl-migration-guide(7) for more info.
+
+   *Shane Lontis*
+
+ * The API functions `CRYPTO_atomic_load_ptr`, `CRYPTO_atomic_store_ptr`, and
+   `CRYPTO_atomic_cmp_exch_ptr` have been added to libcrypto.
+
+   *Neil Horman*
+
+ * The `openssl pkeyutl` command now uses memory-mapped I/O when reading
+   raw input from a file for oneshot sign/verify operations (such as Ed25519,
+   Ed448, and ML-DSA) on platforms that support it (Unix-like). The
+   `openssl dgst` command uses the same approach for one-shot sign/verify
+   when the input is from a file, removing the previous 16 MB limit for
+   file-based input. This improves performance and supports large files
+   without doubling memory use. Other platforms and stdin input continue to
+   use the existing buffer-based path.
+
+   *John Claus*
+
+ * Added AVX2 optimized ML-DSA NTT operations on `x86_64`.
+
+   *Marcel Cornu and Tomasz Kantecki*
+
+ * Changed the output of the -disabled option for the list command.
+   Displaying disabled features, protocols, and algorithms, in relevant sections.
+   Disabled features are now generated at configuration time.
+
+   *Paul Louvel*
+
+ * Added `CTLOG_STORE_add0_log()` to add individual CT logs to a `CTLOG_STORE`.
+
+   *Tim Perry*
+
+ * Dropped `no-ecdsa` and `no-ecdh` options from `Configure` as these options
+   did not really disable the implementations. Use `no-ec` to disable the
+   elliptic curve support.
+
+   *Tomáš Mráz*
+
+ * Made more QUIC transport parameters configurable via the
+   `SSL_get_value_uint`/`SSL_set_value_uint` functions. Now also configurable:
+   `max_udp_payload_size`, `initial_max_data`,
+   `initial_max_stream_data_bidi_local`, `initial_max_stream_data_uni`,
+   `ack_delay_exponent`, `max_ack_delay`.
+
+   *Nikolas Gauder*
+
+ * Add new verification error `X509_V_ERR_DUPLICATE_EXTENSION` with descriptive
+   message for certificates containing duplicate X.509 extensions, which are
+   explicitly prohibited by [RFC 5280].
+
+   *Daniel Kubec*
+
+ * Added support for RFC 8701 GREASE (Generate Random Extensions And Sustain
+   Extensibility). When `SSL_OP_GREASE` is set, the TLS client injects
+   reserved GREASE values into cipher suites, supported versions, supported
+   groups, signature algorithms, key share, and extensions in the ClientHello
+   to prevent ecosystem ossification. The `openssl s_client` command gains a
+   `-grease` option to enable this.
+
+   *William McCormack*
+
+ * Added IKEV2 KDF (EVP_KDF-IKEV2KDF) implementation.
+
+   *Helen Zhang*
 
 ### Changes between 3.6 and 4.0.0 [14 Apr 2026]
 
@@ -233,6 +312,14 @@ OpenSSL Releases
    <!-- https://github.com/openssl/openssl/pull/27397 -->
 
    *Neil Horman*
+ * Added `SSL_add1_dnsname()`, `SSL_set1_dnsname()`, `SSL_add1_ipaddr()`,
+   and `SSL_set1_ipaddr()` functions as a replacement for `SSL_add1_host()`
+   and `SSL_set1_host()` that are deprecated now.  The new replacement API
+   functions was added to support checking multiple names against a certificate
+   with `X509_VERIFY_PARAM`.  See `X509_VERIFY_PARAM_set_flags(3)` for full
+   details.
+
+   *Bob Beck*
 
  * Added `SSL_CTX_get0_alpn_protos()` and `SSL_get0_alpn_protos()` functions.
    <!-- https://github.com/openssl/openssl/pull/29646 -->
@@ -242,6 +329,7 @@ OpenSSL Releases
  * Added `SSL_CTX_is_server()` function, that is similar to `SSL_is_server()`,
    but takes `SSL_CTX` object as an argument.
    <!-- https://github.com/openssl/openssl/pull/29635 -->
+ * Added `SSL_CTX_is_server()`.
 
    *Igor Ustinov*
 

@@ -697,11 +697,22 @@ typedef enum tlsext_index_en {
     TLSEXT_IDX_certificate_authorities,
     TLSEXT_IDX_ech,
     TLSEXT_IDX_outer_extensions,
+    TLSEXT_IDX_grease1,
+    TLSEXT_IDX_grease2,
     TLSEXT_IDX_padding,
     TLSEXT_IDX_psk,
     /* Dummy index - must always be the last entry */
     TLSEXT_IDX_num_builtins
 } TLSEXT_INDEX;
+
+/* RFC 8701 GREASE seed indices */
+#define OSSL_GREASE_CIPHER 0
+#define OSSL_GREASE_GROUP 1
+#define OSSL_GREASE_EXT1 2
+#define OSSL_GREASE_EXT2 3
+#define OSSL_GREASE_VERSION 4
+#define OSSL_GREASE_SIGALG 5
+#define OSSL_GREASE_LAST_INDEX 5
 
 DEFINE_LHASH_OF_EX(SSL_SESSION);
 /* Needed in ssl_cert.c */
@@ -729,8 +740,8 @@ typedef struct ssl_hmac_st {
 #endif
 } SSL_HMAC;
 
-SSL_HMAC *ssl_hmac_new(const SSL_CTX *ctx);
-void ssl_hmac_free(SSL_HMAC *ctx);
+SSL_HMAC *ssl_hmac_construct(const SSL_CTX *ctx, SSL_HMAC *hctx);
+void ssl_hmac_destruct(SSL_HMAC *ctx);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 HMAC_CTX *ssl_hmac_get0_HMAC_CTX(SSL_HMAC *ctx);
 #endif
@@ -796,6 +807,14 @@ typedef struct {
 
 #define TLS_GROUP_FFDHE_FOR_TLS1_3 (TLS_GROUP_FFDHE | TLS_GROUP_ONLY_FOR_TLS1_3)
 
+#if !defined(OPENSSL_NO_TLS1)      \
+    || !defined(OPENSSL_NO_TLS1_1) \
+    || !defined(OPENSSL_NO_TLS1_2) \
+    || !defined(OPENSSL_NO_DTLS1)  \
+    || !defined(OPENSSL_NO_DTLS1_2)
+#define OPENSSL_HAVE_TLS1PRF
+#endif
+
 struct ssl_ctx_st {
     OSSL_LIB_CTX *libctx;
 
@@ -807,6 +826,12 @@ struct ssl_ctx_st {
     STACK_OF(SSL_CIPHER) *tls13_ciphersuites;
     struct x509_store_st /* X509_STORE */ *cert_store;
     LHASH_OF(SSL_SESSION) *sessions;
+    EVP_MAC *hmac;
+    EVP_MD *sha256;
+    EVP_CIPHER *tktenc;
+#ifdef OPENSSL_HAVE_TLS1PRF
+    EVP_KDF *tls1prf;
+#endif
     /*
      * Most session-ids that will be cached, default is
      * SSL_SESSION_CACHE_MAX_SIZE_DEFAULT. 0 is unlimited.
@@ -1741,6 +1766,10 @@ struct ssl_connection_st {
 #ifndef OPENSSL_NO_ECH
         OSSL_ECH_CONN ech;
 #endif
+
+        /* RFC 8701 GREASE */
+        uint8_t grease_seed[OSSL_GREASE_LAST_INDEX + 1];
+        int grease_seeded;
     } ext;
 
     /*
@@ -1982,6 +2011,7 @@ typedef struct dtls1_state_st {
     unsigned int timeout_duration_us;
 
     unsigned int retransmitting;
+    unsigned int has_change_cipher_spec;
 #ifndef OPENSSL_NO_SCTP
     int shutdown_received;
 #endif
@@ -2504,6 +2534,11 @@ void ssl_sort_cipher_list(void);
 int ssl_load_ciphers(SSL_CTX *ctx);
 int ssl_cipher_list_to_bytes(SSL_CONNECTION *s, STACK_OF(SSL_CIPHER) *sk,
     WPACKET *pkt);
+uint16_t ossl_grease_value(SSL_CONNECTION *s, int index);
+static ossl_inline int ossl_is_grease_value(uint16_t val)
+{
+    return (val & 0x0f0f) == 0x0a0a && (val >> 8) == (val & 0xff);
+}
 __owur int ssl_setup_sigalgs(SSL_CTX *ctx);
 int ssl_load_groups(SSL_CTX *ctx);
 int ssl_load_sigalgs(SSL_CTX *ctx);
@@ -2902,8 +2937,8 @@ void ssl_evp_cipher_free(const EVP_CIPHER *cipher);
 int ssl_evp_md_up_ref(const EVP_MD *md);
 void ssl_evp_md_free(const EVP_MD *md);
 
-int ssl_hmac_old_new(SSL_HMAC *ret);
-void ssl_hmac_old_free(SSL_HMAC *ctx);
+SSL_HMAC *ssl_hmac_old_construct(SSL_HMAC *ret);
+void ssl_hmac_old_destruct(SSL_HMAC *ctx);
 int ssl_hmac_old_init(SSL_HMAC *ctx, void *key, size_t len, char *md);
 int ssl_hmac_old_update(SSL_HMAC *ctx, const unsigned char *data, size_t len);
 int ssl_hmac_old_final(SSL_HMAC *ctx, unsigned char *md, size_t *len);

@@ -20,6 +20,7 @@
 #include <openssl/ocsp.h>
 #include <openssl/dh.h>
 #include <openssl/async.h>
+#include <openssl/kdf.h>
 #include <openssl/ct.h>
 #include <openssl/trace.h>
 #include <openssl/core_names.h>
@@ -4262,6 +4263,17 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
             goto err;
     }
 
+    if ((ret->hmac = EVP_MAC_fetch(libctx, "HMAC", propq)) == NULL)
+        goto err;
+    if ((ret->sha256 = EVP_MD_fetch(libctx, "SHA2-256", propq)) == NULL)
+        goto err;
+    if ((ret->tktenc = EVP_CIPHER_fetch(libctx, "AES-256-CBC", propq)) == NULL)
+        goto err;
+#if defined(OPENSSL_HAVE_TLS1PRF)
+    if ((ret->tls1prf = EVP_KDF_fetch(libctx, OSSL_KDF_NAME_TLS1_PRF, propq)) == NULL)
+        goto err;
+#endif
+
     ret->method = meth;
     ret->min_proto_version = 0;
     ret->max_proto_version = 0;
@@ -4338,15 +4350,6 @@ SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
         ERR_raise(ERR_LIB_SSL, ERR_R_X509_LIB);
         goto err;
     }
-
-    /*
-     * If these aren't available from the provider we'll get NULL returns.
-     * That's fine but will cause errors later if SSLv3 is negotiated
-     */
-    ERR_set_mark();
-    ret->md5 = EVP_MD_fetch(libctx, "MD5", propq);
-    ret->sha1 = EVP_MD_fetch(libctx, "SHA1", propq);
-    ERR_pop_to_mark();
 
     if ((ret->ca_names = sk_X509_NAME_new_null()) == NULL) {
         ERR_raise(ERR_LIB_SSL, ERR_R_CRYPTO_LIB);
@@ -4589,6 +4592,13 @@ void SSL_CTX_free(SSL_CTX *a)
     if (a->sessions != NULL)
         SSL_CTX_flush_sessions_ex(a, 0);
 
+    EVP_MAC_free(a->hmac);
+    EVP_MD_free(a->sha256);
+    EVP_CIPHER_free(a->tktenc);
+#ifdef OPENSSL_HAVE_TLS1PRF
+    EVP_KDF_free(a->tls1prf);
+#endif
+
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_SSL_CTX, a, &a->ex_data);
     lh_SSL_SESSION_free(a->sessions);
     X509_STORE_free(a->cert_store);
@@ -4616,9 +4626,6 @@ void SSL_CTX_free(SSL_CTX *a)
     OPENSSL_free(a->ext.tuples);
     OPENSSL_free(a->ext.alpn);
     OPENSSL_secure_clear_free(a->ext.secure, sizeof(*a->ext.secure));
-
-    ssl_evp_md_free(a->md5);
-    ssl_evp_md_free(a->sha1);
 
     for (j = 0; j < SSL_ENC_NUM_IDX; j++)
         ssl_evp_cipher_free(a->ssl_cipher_methods[j]);
@@ -8494,4 +8501,38 @@ int SSL_CTX_get0_server_cert_type(const SSL_CTX *ctx, unsigned char **t, size_t 
     *t = ctx->server_cert_type;
     *len = ctx->server_cert_type_len;
     return 1;
+}
+
+/*
+ * RFC 8701 GREASE - returns a GREASE value (0x?A?A pattern) for the given
+ * index.  Seeds are generated lazily on first use and remain stable for the
+ * lifetime of the connection so that HelloRetryRequest replays get identical
+ * values.
+ */
+uint16_t ossl_grease_value(SSL_CONNECTION *s, int index)
+{
+    uint16_t ret;
+
+    if (index < 0 || index > OSSL_GREASE_LAST_INDEX)
+        return 0x0A0A;
+
+    if (!s->ext.grease_seeded) {
+        if (RAND_bytes_ex(SSL_CONNECTION_GET_CTX(s)->libctx,
+                s->ext.grease_seed,
+                sizeof(s->ext.grease_seed), 0)
+            <= 0)
+            memset(s->ext.grease_seed, 0x42, sizeof(s->ext.grease_seed));
+        s->ext.grease_seeded = 1;
+    }
+
+    /* Map seed byte to 0x?A?A pattern */
+    ret = (s->ext.grease_seed[index] & 0xf0) | 0x0a;
+    ret |= ret << 8;
+
+    /* Ensure EXT2 differs from EXT1 */
+    if (index == OSSL_GREASE_EXT2
+        && ret == ossl_grease_value(s, OSSL_GREASE_EXT1))
+        ret ^= 0x1010;
+
+    return ret;
 }

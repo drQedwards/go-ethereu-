@@ -598,6 +598,7 @@ typedef enum OPTION_choice {
     OPT_S_ENUM,
     OPT_IGNORE_UNEXPECTED_EOF,
     OPT_FALLBACKSCSV,
+    OPT_GREASE,
     OPT_NOCMDS,
     OPT_ADV,
     OPT_PROXY,
@@ -671,6 +672,7 @@ const OPTIONS s_client_options[] = {
     { "read_buf", OPT_READ_BUF, 'p',
         "Default read buffer size to be used for connections" },
     { "fallback_scsv", OPT_FALLBACKSCSV, '-', "Send the fallback SCSV" },
+    { "grease", OPT_GREASE, '-', "Send GREASE values in ClientHello (RFC 8701)" },
 
     OPT_SECTION("Identity"),
     { "cert", OPT_CERT, '<', "Client certificate file to use" },
@@ -682,7 +684,7 @@ const OPTIONS s_client_options[] = {
     { "key", OPT_KEY, 's', "Private key file to use; default: -cert file" },
     { "keyform", OPT_KEYFORM, 'f', "Key format (DER/PEM)" },
     { "pass", OPT_PASS, 's', "Private key and cert file pass phrase source" },
-    { "verify", OPT_VERIFY, 'p', "Turn on peer certificate verification" },
+    { "verify", OPT_VERIFY, 'p', "Turn on peer certificate verification, set depth" },
     { "nameopt", OPT_NAMEOPT, 's', "Certificate subject/issuer name printing options" },
     { "CApath", OPT_CAPATH, '/', "PEM format directory of CA's" },
     { "CAfile", OPT_CAFILE, '<', "PEM format file of CA's" },
@@ -1031,6 +1033,7 @@ int s_client_main(int argc, char **argv)
 #endif
     int read_buf_len = 0;
     int fallback_scsv = 0;
+    int grease = 0;
     OPTION_CHOICE o;
 #ifndef OPENSSL_NO_DTLS
     int enable_timeouts = 0;
@@ -1218,7 +1221,7 @@ int s_client_main(int argc, char **argv)
             break;
         case OPT_VERIFY:
             verify = SSL_VERIFY_PEER;
-            verify_args.depth = atoi(opt_arg());
+            verify_args.depth = opt_int_arg();
             if (!c_quiet)
                 BIO_printf(bio_err, "verify depth is %d\n", verify_args.depth);
             break;
@@ -1399,7 +1402,7 @@ int s_client_main(int argc, char **argv)
                 min_version = TLS1_VERSION;
             break;
         case OPT_SRP_STRENGTH:
-            srp_arg.strength = atoi(opt_arg());
+            srp_arg.strength = opt_int_arg();
             BIO_printf(bio_err, "SRP minimal length for N is %d\n",
                 srp_arg.strength);
             if (min_version < TLS1_VERSION)
@@ -1517,6 +1520,9 @@ int s_client_main(int argc, char **argv)
             break;
         case OPT_FALLBACKSCSV:
             fallback_scsv = 1;
+            break;
+        case OPT_GREASE:
+            grease = 1;
             break;
         case OPT_KEYFORM:
             if (!opt_format(opt_arg(), OPT_FMT_ANY, &key_format))
@@ -1642,7 +1648,7 @@ int s_client_main(int argc, char **argv)
             sni_outer_name = opt_arg();
             break;
         case OPT_ECH_SELECT:
-            ech_select = atoi(opt_arg());
+            ech_select = opt_int_arg();
             break;
         case OPT_ECH_GREASE:
             ech_grease = 1;
@@ -1651,7 +1657,13 @@ int s_client_main(int argc, char **argv)
             ech_grease_suite = opt_arg();
             break;
         case OPT_ECH_GREASE_TYPE:
-            ech_grease_type = atoi(opt_arg());
+            ech_grease_type = opt_int_arg();
+            if (ech_grease_type != (ech_grease_type & 0xFFFF)) {
+                BIO_printf(bio_err,
+                    "%s: invalid GREASE ECH type 0x%8x\n permitted values are 0-FFFF",
+                    prog, ech_grease_type);
+                goto opthelp;
+            }
             break;
         case OPT_ECH_IGNORE_CONFIG_ID:
             ech_ignore_cid = 1;
@@ -1672,13 +1684,13 @@ int s_client_main(int argc, char **argv)
             keymatexportlabel = opt_arg();
             break;
         case OPT_KEYMATEXPORTLEN:
-            keymatexportlen = atoi(opt_arg());
+            keymatexportlen = opt_int_arg();
             break;
         case OPT_ASYNC:
             async = 1;
             break;
         case OPT_MAXFRAGLEN:
-            len = atoi(opt_arg());
+            len = opt_int_arg();
             switch (len) {
             case 512:
                 maxfraglen = TLSEXT_max_fragment_length_512;
@@ -1700,16 +1712,16 @@ int s_client_main(int argc, char **argv)
             }
             break;
         case OPT_MAX_SEND_FRAG:
-            max_send_fragment = atoi(opt_arg());
+            max_send_fragment = opt_int_arg();
             break;
         case OPT_SPLIT_SEND_FRAG:
-            split_send_fragment = atoi(opt_arg());
+            split_send_fragment = opt_int_arg();
             break;
         case OPT_MAX_PIPELINES:
-            max_pipelines = atoi(opt_arg());
+            max_pipelines = opt_int_arg();
             break;
         case OPT_READ_BUF:
-            read_buf_len = atoi(opt_arg());
+            read_buf_len = opt_int_arg();
             break;
         case OPT_KEYLOG_FILE:
             keylog_file = opt_arg();
@@ -2304,6 +2316,8 @@ int s_client_main(int argc, char **argv)
 
     if (fallback_scsv)
         SSL_set_mode(con, SSL_MODE_SEND_FALLBACK_SCSV);
+    if (grease)
+        SSL_set_options(con, SSL_OP_GREASE);
 
     if (!noservername && (servername != NULL || dane_tlsa_domain == NULL)) {
         if (servername == NULL) {

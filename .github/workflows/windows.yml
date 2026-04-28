@@ -41,6 +41,8 @@ jobs:
       run: |
         choco install nasm ${{ matrix.platform.arch == 'x86' && '--x86' || '' }}
         "C:\Program Files${{ matrix.platform.arch == 'x86' && ' (x86)' || '' }}\NASM" | Out-File -FilePath "$env:GITHUB_PATH" -Append
+    - name: install jom
+      run: choco install jom
     - name: prepare the build directory
       run: mkdir _build
     - name: config
@@ -55,7 +57,7 @@ jobs:
       shell: cmd
       run: |
         call "${{ matrix.platform.vcvars }}"
-        nmake /S
+        jom /j4 /S
     - name: download coreinfo
       run: |
         mkdir _build\coreinfo
@@ -93,7 +95,7 @@ jobs:
       shell: cmd
       run: |
         call "${{ matrix.platform.vcvars }}"
-        nmake test VERBOSE_FAILURE=yes TESTS=-test_fuzz* HARNESS_JOBS=4
+        jom test VERBOSE_FAILURE=yes TESTS=-test_fuzz* HARNESS_JOBS=4
     - name: install
       # Run on 64 bit only as 32 bit is slow enough already
       if: ${{ matrix.platform.arch == 'amd64' }}
@@ -102,7 +104,7 @@ jobs:
       run: |
         call "${{ matrix.platform.vcvars }}"
         mkdir _dest
-        nmake install DESTDIR=_dest
+        jom /j4 install DESTDIR=_dest
 
   plain:
     runs-on: windows-2022
@@ -114,6 +116,8 @@ jobs:
       run: git submodule update --init --depth 1 fuzz/corpora
     - name: prepare the build directory
       run: mkdir _build
+    - name: install jom
+      run:  choco install jom
     - name: config
       working-directory: _build
       shell: cmd
@@ -126,7 +130,7 @@ jobs:
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        nmake /S
+        jom /j4 /S
     - name: download coreinfo
       run: |
         mkdir _build\coreinfo
@@ -155,6 +159,8 @@ jobs:
       run: git submodule update --init --depth 1 fuzz/corpora
     - name: prepare the build directory
       run: mkdir _build
+    - name: install jom
+      run:  choco install jom
     - name: config
       working-directory: _build
       shell: cmd
@@ -167,7 +173,7 @@ jobs:
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        nmake
+        jom /j4 /S
     - name: download coreinfo
       run: |
         mkdir _build\coreinfo
@@ -184,7 +190,7 @@ jobs:
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        nmake test VERBOSE_FAILURE=yes TESTS=-test_fuzz* HARNESS_JOBS=4
+        jom test VERBOSE_FAILURE=yes TESTS=-test_fuzz* HARNESS_JOBS=4
 
   cygwin:
     # Run a job for each of the specified target architectures:
@@ -228,3 +234,63 @@ jobs:
 # Disable testing for now. TBD: Need local cygwin installation to debug .
 #    - name: Run openssl tests
 #      run: bash -c "cd openssl && make V=1 test"
+
+  mingw64:
+    runs-on: ubuntu-latest
+    env:
+      CC: x86_64-w64-mingw32-gcc
+      CXX: x86_64-w64-mingw32-g++
+      AR: x86_64-w64-mingw32-ar
+      RANLIB: x86_64-w64-mingw32-ranlib
+      RC: x86_64-w64-mingw32-windres
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+    - name: install MINGW64
+      run: sudo apt-get install -y mingw-w64
+    - name: config
+# Once fixed, enable strict-warnings
+#      run: ./config --strict-warnings --banner=Configured mingw64
+      run: ./config --banner=Configured mingw64
+    - name: make
+      run: make -j4 -s
+
+  msys2-mingw64:
+    runs-on: windows-latest
+    env:
+      MSYSTEM: UCRT64
+      CHERE_INVOKING: 'yes'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: install MSYS2
+        run: |
+          $url = 'https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe'
+          (New-Object System.Net.WebClient).DownloadFile($url, 'msys2.exe')
+          # Remove preinstalled MSYS2
+          if (Test-Path C:\msys64) { Remove-Item -Recurse -Force C:\msys64 }
+          .\msys2.exe -y -oC:\
+          Remove-Item msys2.exe
+
+      - name: update MSYS2
+        run: |
+          C:\msys64\usr\bin\bash.exe -lc ' '
+          # Update core and then normal update
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --noconfirm -Syuu'
+          C:\msys64\usr\bin\bash.exe -lc 'pacman --noconfirm -Syuu'
+
+      - name: install dependencies
+        run: C:\msys64\usr\bin\bash.exe -lc 'pacman --noconfirm -S --needed perl git make mingw-w64-ucrt-x86_64-gcc'
+
+      - name: config
+# Once fixed, enable strict-warnings
+#       run: C:\msys64\usr\bin\bash.exe -lc './config --strict-warnings --banner=Configured mingw64'
+        run: C:\msys64\usr\bin\bash.exe -lc './config --banner=Configured mingw64'
+
+      - name: make
+        run: C:\msys64\usr\bin\bash.exe -lc 'make -j4 -s'
+# Tests are broken for now
+#      - name: test
+#        run: C:\msys64\usr\bin\bash.exe -lc 'make test'

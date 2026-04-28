@@ -8,6 +8,8 @@
  */
 
 /* We need to use some deprecated APIs */
+#include "internal/nelem.h"
+#include "openssl/bio.h"
 #define OPENSSL_SUPPRESS_DEPRECATED
 
 #include "internal/e_os.h"
@@ -31,6 +33,7 @@
 #include "progs.h"
 #include "opt.h"
 #include "names.h"
+#include "configuration.h"
 
 static int verbose = 0;
 static const char *select_name = NULL;
@@ -52,6 +55,21 @@ static const char *select_name = NULL;
         TYPE##_free(impl);                            \
         return 1;                                     \
     }
+
+#define OPENSSL_HAS_DISABLED(name) (OSSL_NELEM(openssl_disabled_##name) > 1)
+
+#define OPENSSL_PRINT_DISABLED(bio, name, str)                                 \
+    do {                                                                       \
+        if (OPENSSL_HAS_DISABLED(name)) {                                      \
+            BIO_puts((bio), "Disabled " str "(s):\n");                         \
+            for (size_t i = 1; i < OSSL_NELEM(openssl_disabled_##name); i++) { \
+                BIO_printf((bio), "\t- %s\n", openssl_disabled_##name[i]);     \
+            }                                                                  \
+        } else {                                                               \
+            BIO_puts((bio), "No disabled " str "s.\n");                        \
+        }                                                                      \
+    } while (0);
+
 IS_FETCHABLE(cipher, EVP_CIPHER)
 IS_FETCHABLE(digest, EVP_MD)
 IS_FETCHABLE(mac, EVP_MAC)
@@ -1394,6 +1412,7 @@ static void list_provider_info(void)
 
 static void list_disabled(void)
 {
+openssl-4.0
     BIO_puts(bio_out, "Disabled algorithms:\n");
 #ifdef OPENSSL_NO_ARGON2
     BIO_puts(bio_out, "ARGON2\n");
@@ -1545,6 +1564,10 @@ static void list_disabled(void)
 #ifdef OPENSSL_NO_ECH
     BIO_puts(bio_out, "ECH\n");
 #endif
+=======
+    OPENSSL_PRINT_DISABLED(bio_out, protocols, "protocol");
+    OPENSSL_PRINT_DISABLED(bio_out, algorithms, "algorithm");
+    OPENSSL_PRINT_DISABLED(bio_out, features, "feature");
 }
 
 /* Unified enum for help and list commands. */
@@ -1660,7 +1683,7 @@ const OPTIONS list_options[] = {
 #endif
     { "providers", OPT_PROVIDER_INFO, '-',
         "List of provider information" },
-    { "disabled", OPT_DISABLED, '-', "List of disabled features" },
+    { "disabled", OPT_DISABLED, '-', "List of disabled features, algorithms, and protocols." },
     { "options", OPT_OPTIONS, 's',
         "List options for specified command" },
     { "objects", OPT_OBJECTS, '-',

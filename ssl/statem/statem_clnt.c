@@ -403,20 +403,6 @@ int ossl_statem_client_read_transition(SSL_CONNECTION *s, int mt)
 
 err:
     /* No valid transition found */
-    if (SSL_CONNECTION_IS_DTLS(s) && mt == SSL3_MT_CHANGE_CIPHER_SPEC) {
-        BIO *rbio;
-
-        /*
-         * CCS messages don't have a message sequence number so this is probably
-         * because of an out-of-order CCS. We'll just drop it.
-         */
-        s->init_num = 0;
-        s->rwstate = SSL_READING;
-        rbio = SSL_get_rbio(SSL_CONNECTION_GET_SSL(s));
-        BIO_clear_retry_flags(rbio);
-        BIO_set_retry_read(rbio);
-        return 0;
-    }
     SSLfatal(s, SSL3_AD_UNEXPECTED_MESSAGE, SSL_R_UNEXPECTED_MESSAGE);
     return 0;
 }
@@ -3102,7 +3088,6 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
     unsigned int sess_len;
     RAW_EXTENSION *exts = NULL;
     PACKET nonce;
-    EVP_MD *sha256 = NULL;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(s);
 
     PACKET_null_init(&nonce);
@@ -3212,25 +3197,16 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
      * We choose the former approach because this fits in with assumptions
      * elsewhere in OpenSSL. The session ID is set to the SHA256 hash of the
      * ticket.
-     */
-    sha256 = EVP_MD_fetch(sctx->libctx, "SHA2-256", sctx->propq);
-    if (sha256 == NULL) {
-        /* Error is already recorded */
-        SSLfatal_alert(s, SSL_AD_INTERNAL_ERROR);
-        goto err;
-    }
-    /*
+     *
      * We use sess_len here because EVP_Digest expects an int
      * but s->session->session_id_length is a size_t
      */
     if (!EVP_Digest(s->session->ext.tick, ticklen,
             s->session->session_id, &sess_len,
-            sha256, NULL)) {
+            sctx->sha256, NULL)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_EVP_LIB);
         goto err;
     }
-    EVP_MD_free(sha256);
-    sha256 = NULL;
     s->session->session_id_length = sess_len;
     s->session->not_resumable = 0;
 
@@ -3269,7 +3245,6 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
 
     return MSG_PROCESS_CONTINUE_READING;
 err:
-    EVP_MD_free(sha256);
     OPENSSL_free(exts);
     return MSG_PROCESS_ERROR;
 }
