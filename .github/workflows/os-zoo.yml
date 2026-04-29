@@ -237,7 +237,7 @@ jobs:
     - name: make test
       run: |
         podman exec -t $CONTAINER_ID sh -c \
-          ".github/workflows/make-test"
+          ".github/workflows/make-test.sh"
     - name: save artifacts
       if: success() || failure()
       uses: actions/upload-artifact@v5
@@ -342,4 +342,4 @@ jobs:
         version: "13.4"
         run: |
           ./util/opensslwrap.sh version -c
-          .github/workflows/make-test
+          .github/workflows/make-test.sh
