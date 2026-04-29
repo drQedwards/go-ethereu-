@@ -437,7 +437,7 @@ jobs:
         cat /proc/cpuinfo
         ./util/opensslwrap.sh version -c
     - name: make test
-      run: .github/workflows/make-test
+      run: .github/workflows/make-test.sh
     - name: save artifacts
       if: success() || failure()
       uses: actions/upload-artifact@v5
